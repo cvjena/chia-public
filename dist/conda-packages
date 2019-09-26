@@ -1,0 +1,8 @@
+cudnn
+cudatoolkit
+cupti
+scikit-learn
+matplotlib
+imageio
+numpy
+scipy
