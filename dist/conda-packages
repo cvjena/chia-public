@@ -2,7 +2,9 @@ cudnn
 cudatoolkit
 cupti
 scikit-learn
+scikit-image
 matplotlib
 imageio
 numpy
 scipy
+networkx
