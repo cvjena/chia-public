@@ -1,16 +1,16 @@
 from abc import ABC, abstractmethod
+from collections import MutableSequence
 
 
-class Pool(ABC):
-    @abstractmethod
-    def request(self, sample_count: int, remove: bool):
-        raise NotImplementedError()
+class Pool(MutableSequence, ABC):
+    def remove_multiple(self, objects):
+        for object_ in objects:
+            self.remove(object_)
 
 
-class FixedPool(Pool):
-    def __init__(self, samples):
-        self.samples = samples
-        self.pos = 0
-
-    def request(self, sample_count: int, remove: bool):
-        return None
+class FixedPool(list, Pool):
+    def __init__(self, samples=None):
+        if samples is not None:
+            list.__init__(self, samples)
+        else:
+            list.__init__(self)
