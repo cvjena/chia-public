@@ -1,11 +1,11 @@
-from abc import ABC, abstractmethod
-from collections import MutableSequence
+from abc import ABC
+from collections import Sequence
 
 
-class Pool(MutableSequence, ABC):
-    def remove_multiple(self, objects):
-        for object_ in objects:
-            self.remove(object_)
+class Pool(Sequence, ABC):
+    def remove_multiple(self, samples):
+        samples_to_remove = set(samples)
+        return self.__class__(samples=[sample for sample in self if sample not in samples_to_remove])
 
 
 class FixedPool(list, Pool):

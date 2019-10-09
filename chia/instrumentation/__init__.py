@@ -44,15 +44,27 @@ class InstrumentationContext:
     def update_local_step(self, local_step):
         self._local_step = local_step
 
-    def report(self, metric, value, local_step=None):
+    def report(self, metric, value, local_step=None, inner_steps=None, inner_contexts=None):
+        # Process step info
         if local_step is not None:
             self.update_local_step(local_step)
 
+        if inner_steps is None:
+            inner_steps = []
+
+        steps = [self._local_step] + inner_steps
+
+        # Process context info
+        if inner_contexts is None:
+            inner_contexts = []
+
+        contexts = [self._description] + inner_contexts
+
         for observer in self._observers:
-            observer.report(metric, value, self._local_step)
+            observer.report(metric, value, steps=steps, contexts=contexts)
 
         if self._parent_context is not None:
-            self._parent_context.report(f'{self._description}.{metric}', value)
+            self._parent_context.report(metric, value, inner_steps=steps, inner_contexts=contexts)
 
 
 def report(metric, value, local_step=None):
@@ -81,12 +93,17 @@ class PrintObserver:
     def __init__(self, prefix=''):
         self._prefix = prefix
 
-    def report(self, metric, value, local_step):
-        description_string = f'{self._prefix:s}{metric:s}'
-        if local_step is not None:
-            print(f'{description_string:40s} @ {local_step:6d}: {value}')
-        else:
-            print(f'{description_string:49s}: {value}')
+    def report(self, metric, value, steps, contexts):
+
+        step_strings = map(lambda step: str(step) if step is not None else '-', steps)
+        steps_string = '.'.join(step_strings)
+
+        context_strings = map(lambda context: str(context) if context is not None else '-', contexts)
+        contexts_string = '.'.join(context_strings)
+
+        description_string = f'{self._prefix:s}{contexts_string:s}/{metric:s}'
+
+        print(f'{description_string:49s} @ {steps_string:10s}: {value}')
 
 
 

@@ -35,3 +35,6 @@ class Sample:
 
     def __eq__(self, other):
         return self.data['uid'] == other.data['uid']
+
+    def __hash__(self):
+        return hash(self.data['uid'])

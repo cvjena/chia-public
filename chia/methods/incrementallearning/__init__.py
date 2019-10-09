@@ -20,6 +20,11 @@ class IncrementalModel(ABC):
 
 
 class ProbabilityOutputModel(IncrementalModel, ABC):
+    def predict(self, samples):
+        samples_ = self.predict_probabilities(samples)
+        samples_ = [sample.add_resource(self.__class__.__name__, 'label_prediction', sorted(sample.get_resource('label_prediction_dist'), key=lambda x: x[1], reverse=True)[0][0]) for sample in samples_]
+        return samples_
+
     @abstractmethod
     def predict_probabilities(self, samples):
         pass

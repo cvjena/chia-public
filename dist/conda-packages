@@ -1,5 +1,5 @@
+cudatoolkit=10.0
 cudnn
-cudatoolkit
 cupti
 scikit-learn
 scikit-image

@@ -30,7 +30,7 @@ class FashionMNISTDataset:
         samples = []
         for i in range(images.shape[0]):
             samples += [Sample(source='FashionMNISTDataset', uid=uuid.uuid5(_namespace_uuid, f'{i:6d}.{uid_suffix}'))
-                        .add_resource('FashionMNISTDataset', 'input_img_np', images[i])
+                        .add_resource('FashionMNISTDataset', 'input_img_np', images[i].reshape([28, 28, 1]).repeat(3, axis=2))
                         .add_resource('FashionMNISTDataset', 'label_gt', labels[i])]
 
         return FixedPool(samples)

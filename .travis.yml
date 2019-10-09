@@ -16,7 +16,7 @@ install:
   - cat dist/conda-packages | xargs conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION
   - conda activate test-environment
   - pip install --upgrade pip
-  - pip install tensorflow==2.0.0-rc1
+  - pip install tensorflow==2.0.0
 
 script:
-  - print "Empty Project"
+  - echo "Empty Project"
