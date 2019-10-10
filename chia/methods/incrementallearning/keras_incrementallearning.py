@@ -34,30 +34,30 @@ class KerasIncrementalModel(ProbabilityOutputModel):
                 layer.add_loss(lambda layer=layer: tf.keras.regularizers.l2(5e-5)(layer.bias))
 
     @abstractmethod
-    def observe_inner(self, samples):
+    def observe_inner(self, samples, gt_resource_id):
         pass
 
-    def observe(self, samples):
-        self.cls.observe(samples)
-        self.observe_inner(samples)
+    def observe(self, samples, gt_resource_id):
+        self.cls.observe(samples, gt_resource_id)
+        self.observe_inner(samples, gt_resource_id)
 
-    def predict(self, samples):
+    def predict(self, samples, prediction_resource_id):
         return_samples = []
         for small_batch in batches_from(samples, batch_size=64):
             image_batch = self.preprocess_image_batch(self.build_image_batch(small_batch))
             feature_batch = self.feature_extractor(image_batch)
             predictions = self.cls.predict(feature_batch)
-            return_samples += [sample.add_resource(self.__class__.__name__, 'label_prediction', prediction) for
+            return_samples += [sample.add_resource(self.__class__.__name__, prediction_resource_id, prediction) for
                                prediction, sample in zip(predictions, small_batch)]
         return return_samples
 
-    def predict_probabilities(self, samples):
+    def predict_probabilities(self, samples, prediction_dist_resource_id):
         return_samples = []
         for small_batch in batches_from(samples, batch_size=64):
             image_batch = self.preprocess_image_batch(self.build_image_batch(small_batch))
             feature_batch = self.feature_extractor(image_batch)
             predictions = self.cls.predict_dist(feature_batch)
-            return_samples += [sample.add_resource(self.__class__.__name__, 'label_prediction_dist', prediction) for prediction, sample in zip(predictions, small_batch)]
+            return_samples += [sample.add_resource(self.__class__.__name__, prediction_dist_resource_id, prediction) for prediction, sample in zip(predictions, small_batch)]
         return return_samples
 
     def save(self, path):
@@ -85,15 +85,17 @@ class DFNKerasIncrementalModel(KerasIncrementalModel):
 
         self.optimizer = tf.keras.optimizers.Adam()
 
-    def observe_inner(self, samples):
+    def observe_inner(self, samples, gt_resource_id):
         assert len(samples) > 0
 
         total_bs = 1000
         old_bs = 0
         new_bs = total_bs
-        inner_steps = 1000000
+        exposures = len(samples) * 4000/np.log10(len(samples)) * (np.sqrt(1000) / np.sqrt(total_bs))
+        inner_steps = int(max(1, exposures // total_bs))
 
         with InstrumentationContext(self.__class__.__name__):
+            report('inner_steps', inner_steps)
             for inner_step in range(inner_steps):
                 update_local_step(inner_step)
 
@@ -114,7 +116,7 @@ class DFNKerasIncrementalModel(KerasIncrementalModel):
                 new_indices = random.choices(range(len(samples)), k=new_bs)
                 for new_index in new_indices:
                     batch_elements_X.append(samples[new_index].get_resource('input_img_np'))
-                    batch_elements_y.append(samples[new_index].get_resource('label_gt'))
+                    batch_elements_y.append(samples[new_index].get_resource(gt_resource_id))
 
                 batch_X = self.preprocess_image_batch(np.stack(batch_elements_X, axis=0))
                 batch_y = batch_elements_y  # No numpy stacking here, these could be strings or something else (concept uids)
@@ -131,11 +133,11 @@ class DFNKerasIncrementalModel(KerasIncrementalModel):
 
                 self.optimizer.apply_gradients(zip(gradients, total_trainable_variables))
 
-                if inner_step % 1000 == 999:
+                if inner_step % 100 == 99:
                     report('loss', hc_loss.numpy())
 
             for sample in samples:
                 self.X.append(sample.get_resource('input_img_np'))
-                self.y.append(sample.get_resource('label_gt'))
+                self.y.append(sample.get_resource(gt_resource_id))
 
             report('storage', len(self.X))

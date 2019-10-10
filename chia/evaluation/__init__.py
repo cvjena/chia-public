@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 
 class Evaluator(ABC):
     @abstractmethod
-    def update(self, pool):
+    def update(self, samples, gt_resource_id, prediction_resource_id):
         return None
 
     @abstractmethod
@@ -22,9 +22,9 @@ class MultiEvaluator(Evaluator):
     def add(self, evaluator):
         self._children.append(evaluator)
 
-    def update(self, samples):
+    def update(self, samples, gt_resource_id, prediction_resource_id):
         for evaluator in self._children:
-            evaluator.update(samples)
+            evaluator.update(samples, gt_resource_id, prediction_resource_id)
 
     def result(self):
         result_dict = dict()
@@ -46,10 +46,10 @@ class AccuracyEvaluator(Evaluator):
         self.correct_count = 0
         self.sample_count = 0
 
-    def update(self, samples):
+    def update(self, samples, gt_resource_id, prediction_resource_id):
         for sample in iter(samples):
             self.sample_count += 1
-            if sample.get_resource('label_gt') == sample.get_resource('label_prediction'):
+            if sample.get_resource(gt_resource_id) == sample.get_resource(prediction_resource_id):
                 self.correct_count += 1
 
     def result(self):

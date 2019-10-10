@@ -1,3 +1,4 @@
+import abc
 import time
 
 _current_context = None
@@ -35,7 +36,13 @@ class InstrumentationContext:
         if self.take_time:
             self.timer = InstrumentationTimer('total_time').__enter__()
 
+        for observer in self._observers:
+            observer.on_context_enter()
+
     def __exit__(self, exc_type, exc_val, exc_tb):
+        for observer in self._observers:
+            observer.on_context_exit()
+
         if self.take_time:
             self.timer.__exit__(None, None, None)
         global _current_context
@@ -89,21 +96,30 @@ def update_local_step(local_step):
         raise ValueError('Cannot update local step without Instrumentation Context')
 
 
-class PrintObserver:
+class InstrumentationObserver(abc.ABC):
     def __init__(self, prefix=''):
         self._prefix = prefix
 
-    def report(self, metric, value, steps, contexts):
+    def on_context_enter(self):
+        pass
 
+    def on_context_exit(self):
+        pass
+
+    @abc.abstractmethod
+    def report(self, metric, value, steps, contexts):
+        pass
+
+    def build_description_string_from(self, metric, contexts, steps):
         step_strings = map(lambda step: str(step) if step is not None else '-', steps)
         steps_string = '.'.join(step_strings)
-
         context_strings = map(lambda context: str(context) if context is not None else '-', contexts)
         contexts_string = '.'.join(context_strings)
-
         description_string = f'{self._prefix:s}{contexts_string:s}/{metric:s}'
+        return description_string, steps_string
 
+
+class PrintObserver(InstrumentationObserver):
+    def report(self, metric, value, steps, contexts):
+        description_string, steps_string = self.build_description_string_from(metric, contexts, steps)
         print(f'{description_string:49s} @ {steps_string:10s}: {value}')
-
-
-
