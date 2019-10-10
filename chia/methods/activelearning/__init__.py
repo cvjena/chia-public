@@ -8,6 +8,7 @@ import random
 
 class ActiveLearningMethod(ABC):
     """ Requests samples from a pool and assigns a score to each sample. """
+
     @abstractmethod
     def score(self, samples, score_resource_id):
         raise NotImplementedError
@@ -15,4 +16,9 @@ class ActiveLearningMethod(ABC):
 
 class RandomActiveLearningMethod(ActiveLearningMethod):
     def score(self, samples, score_resource_id):
-        return [sample.add_resource(self.__class__.__name__, 'score_resource_id', random.uniform(0.0, 1.0)) for sample in samples]
+        return [
+            sample.add_resource(
+                self.__class__.__name__, "score_resource_id", random.uniform(0.0, 1.0)
+            )
+            for sample in samples
+        ]

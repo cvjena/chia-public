@@ -31,7 +31,7 @@ class KerasHierarchicalClassifier(ABC):
         pass
 
 
-class EmbeddingBasedKerasHierarchicalClassifier(KerasHierarchicalClassifier, ABC):
+class EmbeddingBasedKerasHC(KerasHierarchicalClassifier, ABC):
     def __init__(self, kb):
         self.kb = kb
         self.last_observed_concept_stamp = kb.get_concept_stamp()
@@ -75,13 +75,13 @@ class EmbeddingBasedKerasHierarchicalClassifier(KerasHierarchicalClassifier, ABC
             self.update_embedding()
 
 
-class OneHotEmbeddingBasedKerasHierarchicalClassifier(EmbeddingBasedKerasHierarchicalClassifier):
+class OneHotEmbeddingBasedKerasHC(EmbeddingBasedKerasHC):
     def __init__(self, kb):
-        EmbeddingBasedKerasHierarchicalClassifier.__init__(self, kb)
+        EmbeddingBasedKerasHC.__init__(self, kb)
 
         # Configuration
         with configuration.ConfigurationContext(self.__class__.__name__):
-            self._l2_regularization_coefficient = configuration.get('l2', 5e-5)
+            self._l2_regularization_coefficient = configuration.get("l2", 5e-5)
 
         self.last_observed_concept_count = 0
 
@@ -98,16 +98,26 @@ class OneHotEmbeddingBasedKerasHierarchicalClassifier(EmbeddingBasedKerasHierarc
             current_observed_concept_count = len(current_observed_concepts)
 
             # TODO take old weights
-            self.fc_layer = tf.keras.layers.Dense(current_observed_concept_count, activation='softmax',
-                                                  kernel_regularizer=tf.keras.regularizers.l2(
-                                                      self._l2_regularization_coefficient))
+            self.fc_layer = tf.keras.layers.Dense(
+                current_observed_concept_count,
+                activation="softmax",
+                kernel_regularizer=tf.keras.regularizers.l2(
+                    self._l2_regularization_coefficient
+                ),
+            )
 
-            report('observed_concepts', current_observed_concept_count)
+            report("observed_concepts", current_observed_concept_count)
             self.last_observed_concept_count = current_observed_concept_count
 
-            self.dimension_to_uid = [concept.data['uid'] for concept in
-                                     sorted(current_observed_concepts, key=lambda concept: concept.data['uid'])]
-            self.uid_to_dimension = {uid: dimension for dimension, uid in enumerate(self.dimension_to_uid)}
+            self.dimension_to_uid = [
+                concept.data["uid"]
+                for concept in sorted(
+                    current_observed_concepts, key=lambda concept: concept.data["uid"]
+                )
+            ]
+            self.uid_to_dimension = {
+                uid: dimension for dimension, uid in enumerate(self.dimension_to_uid)
+            }
 
     def predict_embedded(self, feature_batch):
         return self.fc_layer(feature_batch)
@@ -117,8 +127,10 @@ class OneHotEmbeddingBasedKerasHierarchicalClassifier(EmbeddingBasedKerasHierarc
         return tf.one_hot(dimensions, depth=self.last_observed_concept_count)
 
     def deembed_dist(self, embedded_labels):
-        return [[(uid, embedded_label[dim]) for uid, dim in self.uid_to_dimension.items()] for embedded_label in
-                embedded_labels]
+        return [
+            [(uid, embedded_label[dim]) for uid, dim in self.uid_to_dimension.items()]
+            for embedded_label in embedded_labels
+        ]
 
     def loss(self, feature_batch, ground_truth):
         embedded_predictions = self.predict_embedded(feature_batch)
