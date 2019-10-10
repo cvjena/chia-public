@@ -8,15 +8,20 @@ from chia import configuration
 
 
 class SacredObserver(instrumentation.InstrumentationObserver):
-    def __init__(self, prefix=''):
+    def __init__(self, prefix=""):
         instrumentation.InstrumentationObserver.__init__(self, prefix)
 
         # Configuration
         with configuration.ConfigurationContext(self.__class__.__name__):
-            self._mongo_observer = sacred.observers.MongoObserver.create(url=configuration.get('mongo_url', next(
-                open(os.path.expanduser("~/work/experiments/sacred/mongourl")))),
-                                                                         db_name=configuration.get('mongo_db_name',
-                                                                                                   'sacred'))
+            self._mongo_observer = sacred.observers.MongoObserver.create(
+                url=configuration.get(
+                    "mongo_url",
+                    next(
+                        open(os.path.expanduser("~/work/experiments/sacred/mongourl"))
+                    ),
+                ),
+                db_name=configuration.get("mongo_db_name", "sacred"),
+            )
         self.sacred_experiment = None
         self.sacred_run = None
 
@@ -26,7 +31,9 @@ class SacredObserver(instrumentation.InstrumentationObserver):
 
     def report(self, metric, value, steps, contexts):
         assert self.sacred_run is not None
-        description_string, steps_string = self.build_description_string_from(metric, contexts, steps)
+        description_string, steps_string = self.build_description_string_from(
+            metric, contexts, steps
+        )
         self.sacred_run.log_scalar(description_string, value, steps_string)
 
     def on_context_enter(self):
@@ -52,5 +59,3 @@ class SacredObserver(instrumentation.InstrumentationObserver):
         super().on_context_exit()
         self.done.set()
         self.sacred_thread.join()
-
-

@@ -16,7 +16,7 @@ class SKLearnIncrementalModel(ProbabilityOutputModel, ABC):
 
     def observe(self, samples, gt_resource_id):
         for sample in samples:
-            self.X.append(sample.get_resource('input_img_np').flatten())
+            self.X.append(sample.get_resource("input_img_np").flatten())
             self.y.append(sample.get_resource(gt_resource_id))
 
         self.cls.fit(self.X, self.y)
@@ -30,15 +30,26 @@ class SKLearnIncrementalModel(ProbabilityOutputModel, ABC):
 
 class SKLearnSVCIncrementalModel(SKLearnIncrementalModel, ProbabilityOutputModel):
     def __init__(self, kb):
-        SKLearnIncrementalModel.__init__(self, kb, SVC(kernel='poly', C=10, gamma='scale', probability=True))
+        SKLearnIncrementalModel.__init__(
+            self, kb, SVC(kernel="poly", C=10, gamma="scale", probability=True)
+        )
 
     def predict_probabilities(self, samples, prediction_dist_resource_id):
-        return [sample.add_resource(self.__class__.__name__, prediction_dist_resource_id,
-                                    list(zip(self.cls.classes_,
-                                             self.cls.predict_proba(
-                                                 [sample.get_resource('input_img_np').flatten()])[0])))
-                for
-                sample in samples]
+        return [
+            sample.add_resource(
+                self.__class__.__name__,
+                prediction_dist_resource_id,
+                list(
+                    zip(
+                        self.cls.classes_,
+                        self.cls.predict_proba(
+                            [sample.get_resource("input_img_np").flatten()]
+                        )[0],
+                    )
+                ),
+            )
+            for sample in samples
+        ]
 
 
 class SKLearnKNNIncrementalModel(SKLearnIncrementalModel, ProbabilityOutputModel):
@@ -46,11 +57,21 @@ class SKLearnKNNIncrementalModel(SKLearnIncrementalModel, ProbabilityOutputModel
         SKLearnIncrementalModel.__init__(self, kb, KNeighborsClassifier())
 
     def predict_probabilities(self, samples, prediction_dist_resource_id):
-        return [sample.add_resource(self.__class__.__name__, prediction_dist_resource_id,
-                                    list(zip(self.cls.classes_,
-                                             self.cls.predict_proba([sample.get_resource('input_img_np').flatten()])[
-                                                 0]))) for
-                sample in samples]
+        return [
+            sample.add_resource(
+                self.__class__.__name__,
+                prediction_dist_resource_id,
+                list(
+                    zip(
+                        self.cls.classes_,
+                        self.cls.predict_proba(
+                            [sample.get_resource("input_img_np").flatten()]
+                        )[0],
+                    )
+                ),
+            )
+            for sample in samples
+        ]
 
 
 class SKLearnMLPIncrementalModel(SKLearnIncrementalModel):
@@ -58,8 +79,18 @@ class SKLearnMLPIncrementalModel(SKLearnIncrementalModel):
         SKLearnIncrementalModel.__init__(self, kb, MLPClassifier())
 
     def predict_probabilities(self, samples, prediction_dist_resource_id):
-        return [sample.add_resource(self.__class__.__name__, prediction_dist_resource_id,
-                                    list(zip(self.cls.classes_,
-                                             self.cls.predict_proba([sample.get_resource('input_img_np').flatten()])[
-                                                 0]))) for
-                sample in samples]
+        return [
+            sample.add_resource(
+                self.__class__.__name__,
+                prediction_dist_resource_id,
+                list(
+                    zip(
+                        self.cls.classes_,
+                        self.cls.predict_proba(
+                            [sample.get_resource("input_img_np").flatten()]
+                        )[0],
+                    )
+                ),
+            )
+            for sample in samples
+        ]

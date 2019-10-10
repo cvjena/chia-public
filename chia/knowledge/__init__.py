@@ -4,12 +4,12 @@ class Concept:
             self.data = data
         else:
             if uid is not None:
-                self.data = {'uid': uid}
+                self.data = {"uid": uid}
             else:
-                raise ValueError('Need uid for concept!')
+                raise ValueError("Need uid for concept!")
 
     def __eq__(self, other):
-        return self.data['uid'] == other.data['uid']
+        return self.data["uid"] == other.data["uid"]
 
 
 class KnowledgeBase:
@@ -27,17 +27,21 @@ class KnowledgeBase:
             self.add_concept(concept_uid)
             new_concept = True
 
-        self.all_concepts[concept_uid].data['observations'] += 1
+        self.all_concepts[concept_uid].data["observations"] += 1
         return new_concept
 
     def add_concept(self, uid, data=None):
         concept = Concept(uid=uid, data=data)
-        concept.data['observations'] = 0
+        concept.data["observations"] = 0
         self.all_concepts[uid] = concept
         self.concept_stamp += 1
 
     def get_observed_concepts(self):
-        return [concept for concept in self.all_concepts.values() if concept.data['observations'] > 0]
+        return [
+            concept
+            for concept in self.all_concepts.values()
+            if concept.data["observations"] > 0
+        ]
 
     def get_concept_stamp(self):
         return self.concept_stamp

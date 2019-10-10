@@ -7,4 +7,3 @@ class SampleFilter(ABC):
     @abstractmethod
     def filter_(self, samples):
         return samples
-

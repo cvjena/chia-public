@@ -15,9 +15,20 @@ class OutputDistributionActiveLearningMethod(ActiveLearningMethod, ABC):
 
     def score(self, samples, score_resource_id):
         # TODO check if predictions are necessary
-        temp_prediction_dist_resource_id = '_al_label_prediction_dist'
-        samples_ = self.model.predict_probabilities(samples, temp_prediction_dist_resource_id)
-        samples_ = [sample.add_resource(self.__class__.__name__, score_resource_id, self.distribution_score(sample_.get_resource(temp_prediction_dist_resource_id))) for sample, sample_ in zip(samples, samples_)]
+        temp_prediction_dist_resource_id = "_al_label_prediction_dist"
+        samples_ = self.model.predict_probabilities(
+            samples, temp_prediction_dist_resource_id
+        )
+        samples_ = [
+            sample.add_resource(
+                self.__class__.__name__,
+                score_resource_id,
+                self.distribution_score(
+                    sample_.get_resource(temp_prediction_dist_resource_id)
+                ),
+            )
+            for sample, sample_ in zip(samples, samples_)
+        ]
         return samples_
 
 

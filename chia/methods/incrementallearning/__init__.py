@@ -21,10 +21,19 @@ class IncrementalModel(ABC):
 
 class ProbabilityOutputModel(IncrementalModel, ABC):
     def predict(self, samples, prediction_resource_id):
-        samples_ = self.predict_probabilities(samples, prediction_resource_id + '_dist')
-        samples_ = [sample.add_resource(self.__class__.__name__, prediction_resource_id,
-                                        sorted(sample.get_resource(prediction_resource_id + '_dist'),
-                                               key=lambda x: x[1], reverse=True)[0][0]) for sample in samples_]
+        samples_ = self.predict_probabilities(samples, prediction_resource_id + "_dist")
+        samples_ = [
+            sample.add_resource(
+                self.__class__.__name__,
+                prediction_resource_id,
+                sorted(
+                    sample.get_resource(prediction_resource_id + "_dist"),
+                    key=lambda x: x[1],
+                    reverse=True,
+                )[0][0],
+            )
+            for sample in samples_
+        ]
         return samples_
 
     @abstractmethod

@@ -32,17 +32,15 @@ class ConfigurationContext:
         return config_dict[key]
 
 
-def get(key, default_value = None):
+def get(key, default_value=None):
     if _current_context is not None:
         return _current_context.get(key, default_value)
     else:
-        raise ValueError('Cannot get configuration entry without Configuration Context')
+        raise ValueError("Cannot get configuration entry without Configuration Context")
 
 
 def get_config_dict():
     if _current_context is not None:
         return _current_context.get_config_dict()
     else:
-        raise ValueError('Cannot get configuration dict without Configuration Context')
-
-
+        raise ValueError("Cannot get configuration dict without Configuration Context")
