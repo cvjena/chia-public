@@ -185,7 +185,7 @@ class DFNKerasIncrementalModel(KerasIncrementalModel):
                     zip(gradients, total_trainable_variables)
                 )
 
-                if inner_step % 100 == 99:
+                if inner_step % 10 == 9:
                     report("loss", hc_loss.numpy())
 
             for sample in samples:

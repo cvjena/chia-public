@@ -1,3 +1,5 @@
+import json
+
 _current_context = None
 _config_dict = {}
 
@@ -44,3 +46,23 @@ def get_config_dict():
         return _current_context.get_config_dict()
     else:
         raise ValueError("Cannot get configuration dict without Configuration Context")
+
+
+def clear():
+    global _config_dict
+    _config_dict = {}
+
+
+def dump():
+    return json.dumps(_config_dict, indent=2)
+
+
+def save(path):
+    json.dump(open(path, "w"), _config_dict)
+
+
+def load(path):
+    global _config_dict
+    assert len(_config_dict.items()) == 0
+
+    _config_dict = json.load(open(path))
