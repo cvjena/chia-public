@@ -1,5 +1,6 @@
 from abc import abstractmethod, ABC
 import tensorflow as tf
+import numpy as np
 
 from chia.instrumentation import InstrumentationContext, report
 from chia import configuration
@@ -85,7 +86,6 @@ class OneHotEmbeddingBasedKerasHC(EmbeddingBasedKerasHC):
 
         self.last_observed_concept_count = 0
 
-        self.cce = tf.keras.losses.CategoricalCrossentropy()
         self.fc_layer = None
         self.uid_to_dimension = {}
         self.dimension_to_uid = []
@@ -98,6 +98,11 @@ class OneHotEmbeddingBasedKerasHC(EmbeddingBasedKerasHC):
             current_observed_concept_count = len(current_observed_concepts)
 
             # TODO take old weights
+            try:
+                old_weights = self.fc_layer.get_weights()
+            except:
+                old_weights = []
+
             self.fc_layer = tf.keras.layers.Dense(
                 current_observed_concept_count,
                 activation="softmax",
@@ -106,18 +111,49 @@ class OneHotEmbeddingBasedKerasHC(EmbeddingBasedKerasHC):
                 ),
             )
 
-            report("observed_concepts", current_observed_concept_count)
-            self.last_observed_concept_count = current_observed_concept_count
-
-            self.dimension_to_uid = [
+            update_uids = [
                 concept.data["uid"]
-                for concept in sorted(
-                    current_observed_concepts, key=lambda concept: concept.data["uid"]
-                )
+                for concept in current_observed_concepts
+                if concept.data["uid"] not in self.dimension_to_uid
             ]
+
+            self.dimension_to_uid += sorted(update_uids)
+
             self.uid_to_dimension = {
                 uid: dimension for dimension, uid in enumerate(self.dimension_to_uid)
             }
+
+            if len(old_weights) == 2:
+                # Layer can be updated
+                new_weights = np.concatenate(
+                    [
+                        old_weights[0],
+                        np.zeros(
+                            [
+                                old_weights[0].shape[0],
+                                current_observed_concept_count
+                                - self.last_observed_concept_count,
+                            ]
+                        ),
+                    ],
+                    axis=1,
+                )
+                new_biases = np.concatenate(
+                    [
+                        old_weights[1],
+                        np.zeros(
+                            current_observed_concept_count
+                            - self.last_observed_concept_count
+                        ),
+                    ],
+                    axis=0,
+                )
+
+                self.fc_layer.build([None, old_weights[0].shape[0]])
+
+                self.fc_layer.set_weights([new_weights, new_biases])
+            report("observed_concepts", current_observed_concept_count)
+            self.last_observed_concept_count = current_observed_concept_count
 
     def predict_embedded(self, feature_batch):
         return self.fc_layer(feature_batch)
@@ -135,7 +171,12 @@ class OneHotEmbeddingBasedKerasHC(EmbeddingBasedKerasHC):
     def loss(self, feature_batch, ground_truth):
         embedded_predictions = self.predict_embedded(feature_batch)
         embedded_ground_truth = self.embed(ground_truth)
-        return self.cce(embedded_ground_truth, embedded_predictions)
+        loss = tf.reduce_mean(
+            tf.keras.losses.categorical_crossentropy(
+                embedded_ground_truth, embedded_predictions
+            )
+        )
+        return loss
 
     def observe(self, samples, gt_resource_id):
         self.maybe_update_embedding()

@@ -6,14 +6,27 @@ import random
 from chia.methods.incrementallearning import ProbabilityOutputModel
 from chia.instrumentation import report, update_local_step, InstrumentationContext
 from chia.data.util import batches_from
+from chia import configuration
 
 
 class KerasIncrementalModel(ProbabilityOutputModel):
     def __init__(self, cls):
         self.cls = cls
 
-        """
-        self.feature_extractor = tf.keras.applications.resnet_v2.ResNet50V2(include_top=False, input_tensor=None, input_shape=None, pooling='avg', weights='imagenet')
+        with configuration.ConfigurationContext(self.__class__.__name__):
+            self.do_train_feature_extractor = configuration.get(
+                "train_feature_extractor", False
+            )
+            self.exposure_coef = configuration.get("exposure_coef", 10)
+
+        self.feature_extractor = tf.keras.applications.resnet_v2.ResNet50V2(
+            include_top=False,
+            input_tensor=None,
+            input_shape=None,
+            pooling="avg",
+            weights="imagenet",
+        )
+
         """
         self.feature_extractor = tf.keras.models.Sequential()
         self.feature_extractor.add(
@@ -21,7 +34,7 @@ class KerasIncrementalModel(ProbabilityOutputModel):
                 filters=6,
                 kernel_size=(3, 3),
                 activation="relu",
-                input_shape=(28, 28, 1),
+                input_shape=(None, None, 3),
             )
         )
         self.feature_extractor.add(tf.keras.layers.AveragePooling2D())
@@ -36,6 +49,7 @@ class KerasIncrementalModel(ProbabilityOutputModel):
             tf.keras.layers.Dense(units=10, activation="softmax")
         )
         self.feature_extractor.summary()
+        """
 
         # Add regularizer: see https://jricheimer.github.io/keras/2019/02/06/keras-hack-1/
         for layer in self.feature_extractor.layers:
@@ -64,7 +78,7 @@ class KerasIncrementalModel(ProbabilityOutputModel):
             image_batch = self.preprocess_image_batch(
                 self.build_image_batch(small_batch)
             )
-            feature_batch = self.feature_extractor(image_batch)
+            feature_batch = self.feature_extractor(image_batch, training=False)
             predictions = self.cls.predict(feature_batch)
             return_samples += [
                 sample.add_resource(
@@ -80,7 +94,7 @@ class KerasIncrementalModel(ProbabilityOutputModel):
             image_batch = self.preprocess_image_batch(
                 self.build_image_batch(small_batch)
             )
-            feature_batch = self.feature_extractor(image_batch)
+            feature_batch = self.feature_extractor(image_batch, training=False)
             predictions = self.cls.predict_dist(feature_batch)
             return_samples += [
                 sample.add_resource(
@@ -120,12 +134,12 @@ class DFNKerasIncrementalModel(KerasIncrementalModel):
     def observe_inner(self, samples, gt_resource_id):
         assert len(samples) > 0
 
-        total_bs = 1000
+        total_bs = 128
         old_bs = 0
         new_bs = total_bs
         exposures = (
             len(samples)
-            * 4000
+            * self.exposure_coef
             / np.log10(len(samples))
             * (np.sqrt(1000) / np.sqrt(total_bs))
         )
@@ -167,7 +181,7 @@ class DFNKerasIncrementalModel(KerasIncrementalModel):
                 )  # No numpy stacking here, these could be strings or something else (concept uids)
 
                 with tf.GradientTape() as tape:
-                    feature_batch = self.feature_extractor(batch_X)
+                    feature_batch = self.feature_extractor(batch_X, training=True)
                     hc_loss = self.cls.loss(feature_batch, batch_y)
                     reg_loss = sum(
                         self.feature_extractor.losses + self.cls.regularization_losses()
@@ -175,10 +189,14 @@ class DFNKerasIncrementalModel(KerasIncrementalModel):
 
                     total_loss = hc_loss + reg_loss
 
-                total_trainable_variables = (
-                    self.feature_extractor.trainable_variables
-                    + self.cls.trainable_variables()
-                )
+                if self.do_train_feature_extractor:
+                    total_trainable_variables = (
+                        self.feature_extractor.trainable_variables
+                        + self.cls.trainable_variables()
+                    )
+                else:
+                    total_trainable_variables = self.cls.trainable_variables()
+
                 gradients = tape.gradient(total_loss, total_trainable_variables)
 
                 self.optimizer.apply_gradients(
@@ -188,6 +206,7 @@ class DFNKerasIncrementalModel(KerasIncrementalModel):
                 if inner_step % 10 == 9:
                     report("loss", hc_loss.numpy())
 
+            # Training done here
             for sample in samples:
                 self.X.append(sample.get_resource("input_img_np"))
                 self.y.append(sample.get_resource(gt_resource_id))

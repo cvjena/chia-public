@@ -2,8 +2,8 @@ import numpy as np
 import pickle as pkl
 import uuid
 import os
+import glob
 
-from chia.data import datasets
 from chia.data import sample
 from chia import configuration
 
@@ -31,9 +31,18 @@ class CORe50Dataset:
 
         self.path_to_index = {path: index for index, path in enumerate(self.paths)}
 
-    def get_train_pools(self, scenario, run, label_resource_id):
+    def get_train_pool_count(self, scenario, run):
+        scenario = str(scenario).lower()
+        assert scenario in ["ni", "nc", "nic"]
+        filelist_filter = os.path.join(
+            self.base_path,
+            "batches_filelists",
+            f"{scenario.upper()}_inc",
+            f"run{run:d}",
+            "train_batch_*_filelist.txt",
+        )
 
-        pass
+        return len(glob.glob(filelist_filter))
 
     def get_pool_for(self, scenario, run, batch, label_resource_id):
         # Find the data

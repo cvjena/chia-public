@@ -66,3 +66,12 @@ def load(path):
     assert len(_config_dict.items()) == 0
 
     _config_dict = json.load(open(path))
+
+
+def main_context(func):
+    def wrapper():
+        with ConfigurationContext("global") as ctx:
+            func()
+            dump()
+
+    return wrapper
