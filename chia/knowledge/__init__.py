@@ -1,3 +1,6 @@
+import pickle
+
+
 class Concept:
     def __init__(self, uid=None, data=None):
         if data is not None:
@@ -10,6 +13,9 @@ class Concept:
 
     def __eq__(self, other):
         return self.data["uid"] == other.data["uid"]
+
+    def __str__(self):
+        return str(self.data)
 
 
 class KnowledgeBase:
@@ -46,8 +52,10 @@ class KnowledgeBase:
     def get_concept_stamp(self):
         return self.concept_stamp
 
-    def save(self):
-        raise NotImplementedError
+    def save(self, path):
+        with open(path + "_knowledgebase.pkl", "wb") as target:
+            pickle.dump((self.concept_stamp, self.all_concepts), target)
 
-    def load(self):
-        raise NotImplementedError
+    def restore(self, path):
+        with open(path + "_knowledgebase.pkl", "rb") as target:
+            self.concept_stamp, self.all_concepts = pickle.load(target)

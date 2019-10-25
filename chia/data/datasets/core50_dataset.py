@@ -5,7 +5,7 @@ import os
 import glob
 
 from chia.data import sample
-from chia import configuration
+from chia.framework import configuration
 
 _namespace_uuid = uuid.UUID("280c9580-aaf4-4dab-9f0b-3c3b52e00bb8")
 
@@ -40,6 +40,15 @@ class CORe50Dataset:
             f"{scenario.upper()}_inc",
             f"run{run:d}",
             "train_batch_*_filelist.txt",
+        )
+
+        return len(glob.glob(filelist_filter))
+
+    def get_run_count(self, scenario):
+        scenario = str(scenario).lower()
+        assert scenario in ["ni", "nc", "nic"]
+        filelist_filter = os.path.join(
+            self.base_path, "batches_filelists", f"{scenario.upper()}_inc", f"run*"
         )
 
         return len(glob.glob(filelist_filter))

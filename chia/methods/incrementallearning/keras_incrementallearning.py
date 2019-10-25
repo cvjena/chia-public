@@ -1,12 +1,17 @@
-from abc import abstractmethod, ABC
+from abc import abstractmethod
 import tensorflow as tf
 import numpy as np
 import random
 
+from chia.methods.common import keras_dataaugmentation
 from chia.methods.incrementallearning import ProbabilityOutputModel
-from chia.instrumentation import report, update_local_step, InstrumentationContext
+from chia.framework.instrumentation import (
+    report,
+    update_local_step,
+    InstrumentationContext,
+)
 from chia.data.util import batches_from
-from chia import configuration
+from chia.framework import configuration
 
 
 class KerasIncrementalModel(ProbabilityOutputModel):
@@ -27,30 +32,6 @@ class KerasIncrementalModel(ProbabilityOutputModel):
             weights="imagenet",
         )
 
-        """
-        self.feature_extractor = tf.keras.models.Sequential()
-        self.feature_extractor.add(
-            tf.keras.layers.Conv2D(
-                filters=6,
-                kernel_size=(3, 3),
-                activation="relu",
-                input_shape=(None, None, 3),
-            )
-        )
-        self.feature_extractor.add(tf.keras.layers.AveragePooling2D())
-        self.feature_extractor.add(
-            tf.keras.layers.Conv2D(filters=16, kernel_size=(3, 3), activation="relu")
-        )
-        self.feature_extractor.add(tf.keras.layers.AveragePooling2D())
-        self.feature_extractor.add(tf.keras.layers.Flatten())
-        self.feature_extractor.add(tf.keras.layers.Dense(units=120, activation="relu"))
-        self.feature_extractor.add(tf.keras.layers.Dense(units=84, activation="relu"))
-        self.feature_extractor.add(
-            tf.keras.layers.Dense(units=10, activation="softmax")
-        )
-        self.feature_extractor.summary()
-        """
-
         # Add regularizer: see https://jricheimer.github.io/keras/2019/02/06/keras-hack-1/
         for layer in self.feature_extractor.layers:
             if isinstance(layer, tf.keras.layers.Conv2D) or isinstance(
@@ -64,6 +45,8 @@ class KerasIncrementalModel(ProbabilityOutputModel):
                     lambda layer=layer: tf.keras.regularizers.l2(5e-5)(layer.bias)
                 )
 
+        self.augmentation = keras_dataaugmentation.KerasDataAugmentation()
+
     @abstractmethod
     def observe_inner(self, samples, gt_resource_id):
         pass
@@ -74,7 +57,7 @@ class KerasIncrementalModel(ProbabilityOutputModel):
 
     def predict(self, samples, prediction_resource_id):
         return_samples = []
-        for small_batch in batches_from(samples, batch_size=64):
+        for small_batch in batches_from(samples, batch_size=16):
             image_batch = self.preprocess_image_batch(
                 self.build_image_batch(small_batch)
             )
@@ -90,7 +73,7 @@ class KerasIncrementalModel(ProbabilityOutputModel):
 
     def predict_probabilities(self, samples, prediction_dist_resource_id):
         return_samples = []
-        for small_batch in batches_from(samples, batch_size=64):
+        for small_batch in batches_from(samples, batch_size=16):
             image_batch = self.preprocess_image_batch(
                 self.build_image_batch(small_batch)
             )
@@ -105,11 +88,10 @@ class KerasIncrementalModel(ProbabilityOutputModel):
         return return_samples
 
     def save(self, path):
-        self.feature_extractor.save_weights(path)
-        # TODO save and load classifier weights
+        self.feature_extractor.save_weights(path + "_features.h5")
 
     def restore(self, path):
-        self.feature_extractor.load_weights(path)
+        self.feature_extractor.load_weights(path + "_features.h5")
 
     def build_image_batch(self, samples):
         assert len(samples) > 0
@@ -117,10 +99,16 @@ class KerasIncrementalModel(ProbabilityOutputModel):
             [sample.get_resource("input_img_np") for sample in samples], axis=0
         )
 
-    def preprocess_image_batch(self, image_batch):
-        image_batch = tf.cast(image_batch, dtype=tf.float32)
-        image_batch = (image_batch / 255.0) - 0.5
-        return image_batch
+    def preprocess_image_batch(self, image_batch, processing_fn=None):
+        if processing_fn is not None:
+            image_batch = tf.cast(image_batch, dtype=tf.float32) / 255.0
+            image_batch = processing_fn(image_batch)
+            image_batch = (2.0 * image_batch) - 1.0
+            return image_batch
+        else:
+            image_batch = tf.cast(image_batch, dtype=tf.float32)
+            image_batch = (image_batch / 127.5) - 1.0
+            return image_batch
 
 
 class DFNKerasIncrementalModel(KerasIncrementalModel):
@@ -134,14 +122,15 @@ class DFNKerasIncrementalModel(KerasIncrementalModel):
     def observe_inner(self, samples, gt_resource_id):
         assert len(samples) > 0
 
-        total_bs = 128
+        # TODO automatic bs setting
+        total_bs = 16
         old_bs = 0
         new_bs = total_bs
         exposures = (
             len(samples)
             * self.exposure_coef
             / np.log10(len(samples))
-            * (np.sqrt(1000) / np.sqrt(total_bs))
+            * (1000 / total_bs)
         )
         inner_steps = int(max(1, exposures // total_bs))
 
@@ -174,7 +163,8 @@ class DFNKerasIncrementalModel(KerasIncrementalModel):
                     )
 
                 batch_X = self.preprocess_image_batch(
-                    np.stack(batch_elements_X, axis=0)
+                    np.stack(batch_elements_X, axis=0),
+                    processing_fn=self.augmentation.process,
                 )
                 batch_y = (
                     batch_elements_y

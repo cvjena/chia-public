@@ -1,9 +1,10 @@
 from abc import abstractmethod, ABC
 import tensorflow as tf
 import numpy as np
+import pickle
 
-from chia.instrumentation import InstrumentationContext, report
-from chia import configuration
+from chia.framework.instrumentation import InstrumentationContext, report
+from chia.framework import configuration
 
 
 class KerasHierarchicalClassifier(ABC):
@@ -29,6 +30,14 @@ class KerasHierarchicalClassifier(ABC):
 
     @abstractmethod
     def trainable_variables(self):
+        pass
+
+    @abstractmethod
+    def save(self, path):
+        pass
+
+    @abstractmethod
+    def restore(self, path):
         pass
 
 
@@ -84,7 +93,7 @@ class OneHotEmbeddingBasedKerasHC(EmbeddingBasedKerasHC):
         with configuration.ConfigurationContext(self.__class__.__name__):
             self._l2_regularization_coefficient = configuration.get("l2", 5e-5)
 
-        self.last_observed_concept_count = 0
+        self.last_observed_concept_count = len(self.kb.get_observed_concepts())
 
         self.fc_layer = None
         self.uid_to_dimension = {}
@@ -186,3 +195,29 @@ class OneHotEmbeddingBasedKerasHC(EmbeddingBasedKerasHC):
 
     def trainable_variables(self):
         return self.fc_layer.trainable_variables
+
+    def save(self, path):
+        with open(path + "_hc.pkl", "wb") as target:
+            pickle.dump(self.fc_layer.get_weights(), target)
+
+        with open(path + "_uidtodim.pkl", "wb") as target:
+            pickle.dump((self.uid_to_dimension, self.dimension_to_uid), target)
+
+    def restore(self, path):
+        with open(path + "_hc.pkl", "rb") as target:
+            new_weights = pickle.load(target)
+            has_weights = False
+            try:
+                has_weights = len(self.fc_layer.get_weights()) == 2
+            except:
+                pass
+
+            if not has_weights:
+                self.fc_layer.build([None, new_weights[0].shape[0]])
+
+            self.fc_layer.set_weights(new_weights)
+
+        with open(path + "_uidtodim.pkl", "rb") as target:
+            (self.uid_to_dimension, self.dimension_to_uid) = pickle.load(target)
+
+        self.update_embedding()

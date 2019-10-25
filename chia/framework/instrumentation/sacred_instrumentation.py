@@ -3,8 +3,7 @@ import sacred
 import threading
 import os
 
-from chia import instrumentation
-from chia import configuration
+from chia.framework import configuration, instrumentation
 
 
 class SacredObserver(instrumentation.InstrumentationObserver):
