@@ -11,7 +11,7 @@ class Sample:
             self.data = data
         else:
             if uid is not None:
-                self.data = {"uid": uid}
+                self.data = {"uid": uid, "_lazy_resources": {}}
             else:
                 raise ValueError("Need UID for sample!")
 
@@ -23,6 +23,17 @@ class Sample:
 
         return Sample(data=new_data, history=new_history)
 
+    def add_lazy_resource(self, source, resource_id, fn):
+        new_history = self.history + [("add_lazy", resource_id, source)]
+
+        new_lazy_resources = {resource_id: fn, **self.data["_lazy_resources"]}
+        new_data = {
+            "_lazy_resources": new_lazy_resources,
+            **{k: v for k, v in self.data.items() if k != "_lazy_resources"},
+        }
+
+        return Sample(data=new_data, history=new_history)
+
     def apply_on_resource(self, source, resource_id, fn):
         assert resource_id in self.data.keys()
         new_history = self.history + [("apply", resource_id, source)]
@@ -31,7 +42,17 @@ class Sample:
         return Sample(data=new_data, history=new_history)
 
     def get_resource(self, resource_id):
-        return self.data[resource_id]
+        if resource_id in self.data.keys():
+            return self.data[resource_id]
+        elif resource_id in self.data["_lazy_resources"].keys():
+            return self.data["_lazy_resources"][resource_id](self)
+        else:
+            raise ValueError(f"Unknown resource id {resource_id}")
+
+    def get_resource_ids(self):
+        return [k for k in self.data.keys() if not k.startswith("_")] + list(
+            self.data["_lazy_resources"].keys()
+        )
 
     def __eq__(self, other):
         return self.data["uid"] == other.data["uid"]

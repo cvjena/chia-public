@@ -1,28 +1,24 @@
 from abc import abstractmethod
 import tensorflow as tf
 import numpy as np
-import random
+import functools
+import math
 
 from chia.methods.common import keras_dataaugmentation
 from chia.methods.incrementallearning import ProbabilityOutputModel
-from chia.framework.instrumentation import (
-    report,
-    update_local_step,
-    InstrumentationContext,
-)
 from chia.data.util import batches_from
-from chia.framework import configuration
+from chia.framework import configuration, instrumentation
 
 
 class KerasIncrementalModel(ProbabilityOutputModel):
     def __init__(self, cls):
         self.cls = cls
 
-        with configuration.ConfigurationContext(self.__class__.__name__):
+        with configuration.ConfigurationContext("KerasIncrementalModel"):
             self.do_train_feature_extractor = configuration.get(
                 "train_feature_extractor", False
             )
-            self.exposure_coef = configuration.get("exposure_coef", 10)
+            self.pixels_per_gb = configuration.get("pixels_per_gb", 1143901)
 
         self.feature_extractor = tf.keras.applications.resnet_v2.ResNet50V2(
             include_top=False,
@@ -110,95 +106,35 @@ class KerasIncrementalModel(ProbabilityOutputModel):
             image_batch = (image_batch / 127.5) - 1.0
             return image_batch
 
+    def get_auto_batchsize(self, shape, vram_gb=11.0):
+        input_buffer_bytes = 4.0 * functools.reduce(lambda x, y: x * y, shape[:2], 1)
+        bs = max(1, math.floor((self.pixels_per_gb / input_buffer_bytes) * vram_gb))
+        with instrumentation.InstrumentationContext(self.__class__.__name__):
+            instrumentation.report("auto_bs", bs)
+        return bs
 
-class DFNKerasIncrementalModel(KerasIncrementalModel):
-    def __init__(self, cls):
-        KerasIncrementalModel.__init__(self, cls)
-        self.X = []
-        self.y = []
-
-        self.optimizer = tf.keras.optimizers.Adam()
-
-    def observe_inner(self, samples, gt_resource_id):
-        assert len(samples) > 0
-
-        # TODO automatic bs setting
-        total_bs = 16
-        old_bs = 0
-        new_bs = total_bs
-        exposures = (
-            len(samples)
-            * self.exposure_coef
-            / np.log10(len(samples))
-            * (1000 / total_bs)
+    def perform_single_gradient_step(self, batch_elements_X, batch_elements_y):
+        batch_X = self.preprocess_image_batch(
+            np.stack(batch_elements_X, axis=0), processing_fn=self.augmentation.process
         )
-        inner_steps = int(max(1, exposures // total_bs))
+        batch_y = (
+            batch_elements_y
+        )  # No numpy stacking here, these could be strings or something else (concept uids)
+        with tf.GradientTape() as tape:
+            feature_batch = self.feature_extractor(batch_X, training=True)
+            hc_loss = self.cls.loss(feature_batch, batch_y)
+            reg_loss = sum(
+                self.feature_extractor.losses + self.cls.regularization_losses()
+            )
 
-        with InstrumentationContext(self.__class__.__name__):
-            report("inner_steps", inner_steps)
-            for inner_step in range(inner_steps):
-                update_local_step(inner_step)
-
-                batch_elements_X = []
-                batch_elements_y = []
-
-                # Old images
-                if len(self.X) > 0:
-                    old_indices = random.choices(range(len(self.X)), k=old_bs)
-                    for old_index in old_indices:
-                        batch_elements_X.append(self.X[old_index])
-                        batch_elements_y.append(self.y[old_index])
-
-                    old_bs = total_bs // 2
-                    new_bs = total_bs - old_bs
-
-                # New images
-                new_indices = random.choices(range(len(samples)), k=new_bs)
-                for new_index in new_indices:
-                    batch_elements_X.append(
-                        samples[new_index].get_resource("input_img_np")
-                    )
-                    batch_elements_y.append(
-                        samples[new_index].get_resource(gt_resource_id)
-                    )
-
-                batch_X = self.preprocess_image_batch(
-                    np.stack(batch_elements_X, axis=0),
-                    processing_fn=self.augmentation.process,
-                )
-                batch_y = (
-                    batch_elements_y
-                )  # No numpy stacking here, these could be strings or something else (concept uids)
-
-                with tf.GradientTape() as tape:
-                    feature_batch = self.feature_extractor(batch_X, training=True)
-                    hc_loss = self.cls.loss(feature_batch, batch_y)
-                    reg_loss = sum(
-                        self.feature_extractor.losses + self.cls.regularization_losses()
-                    )
-
-                    total_loss = hc_loss + reg_loss
-
-                if self.do_train_feature_extractor:
-                    total_trainable_variables = (
-                        self.feature_extractor.trainable_variables
-                        + self.cls.trainable_variables()
-                    )
-                else:
-                    total_trainable_variables = self.cls.trainable_variables()
-
-                gradients = tape.gradient(total_loss, total_trainable_variables)
-
-                self.optimizer.apply_gradients(
-                    zip(gradients, total_trainable_variables)
-                )
-
-                if inner_step % 10 == 9:
-                    report("loss", hc_loss.numpy())
-
-            # Training done here
-            for sample in samples:
-                self.X.append(sample.get_resource("input_img_np"))
-                self.y.append(sample.get_resource(gt_resource_id))
-
-            report("storage", len(self.X))
+            total_loss = hc_loss + reg_loss
+        if self.do_train_feature_extractor:
+            total_trainable_variables = (
+                self.feature_extractor.trainable_variables
+                + self.cls.trainable_variables()
+            )
+        else:
+            total_trainable_variables = self.cls.trainable_variables()
+        gradients = tape.gradient(total_loss, total_trainable_variables)
+        self.optimizer.apply_gradients(zip(gradients, total_trainable_variables))
+        return hc_loss

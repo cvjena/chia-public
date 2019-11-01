@@ -4,6 +4,8 @@ import random
 import numpy as np
 
 from chia.data import sample
+from chia import knowledge
+
 
 _namespace_uuid = uuid.UUID("458e91ef-6c48-428b-9b9e-a136d1d8fa7f")
 _label_names = [
@@ -109,6 +111,109 @@ _label_names = [
     "worm",
 ]
 
+_labels_to_wordnet = [
+    ("apple", "apple.n.01"),
+    ("aquarium_fish", "freshwater_fish.n.01"),
+    ("baby", "baby.n.01"),
+    ("bear", "bear.n.01"),
+    ("beaver", "beaver.n.07"),
+    ("bed", "bed.n.01"),
+    ("bee", "bee.n.01"),
+    ("beetle", "beetle.n.01"),
+    ("bicycle", "bicycle.n.01"),
+    ("bottle", "bottle.n.01"),
+    ("bowl", "bowl.n.01"),
+    ("boy", "male_child.n.01"),
+    ("bridge", "bridge.n.01"),
+    ("bus", "bus.n.01"),
+    ("butterfly", "butterfly.n.01"),
+    ("camel", "camel.n.01"),
+    ("can", "can.n.01"),
+    ("castle", "castle.n.02"),
+    ("caterpillar", "caterpillar.n.01"),
+    ("cattle", "cattle.n.01"),
+    ("chair", "chair.n.01"),
+    ("chimpanzee", "chimpanzee.n.01"),
+    ("clock", "clock.n.01"),
+    ("cloud", "cloud.n.02"),
+    ("cockroach", "cockroach.n.01"),
+    ("couch", "sofa.n.01"),
+    ("crab", "crab.n.01"),
+    ("crocodile", "crocodile.n.01"),
+    ("cup", "cup.n.01"),
+    ("dinosaur", "dinosaur.n.01"),
+    ("dolphin", "dolphin.n.02"),
+    ("elephant", "elephant.n.01"),
+    ("flatfish", "flatfish.n.02"),
+    ("forest", "forest.n.01"),
+    ("fox", "fox.n.01"),
+    ("girl", "female_child.n.01"),
+    ("hamster", "hamster.n.01"),
+    ("house", "house.n.01"),
+    ("kangaroo", "kangaroo.n.01"),
+    ("keyboard", "computer_keyboard.n.01"),
+    ("lamp", "lamp.n.01"),
+    ("lawn_mower", "lawn_mower.n.01"),
+    ("leopard", "leopard.n.02"),
+    ("lion", "lion.n.01"),
+    ("lizard", "lizard.n.01"),
+    ("lobster", "lobster.n.02"),
+    ("man", "man.n.01"),
+    ("maple_tree", "maple.n.02"),
+    ("motorcycle", "motorcycle.n.01"),
+    ("mountain", "mountain.n.01"),
+    ("mouse", "mouse.n.01"),
+    ("mushroom", "mushroom.n.02"),
+    ("oak_tree", "oak.n.02"),
+    ("orange", "orange.n.01"),
+    ("orchid", "orchid.n.01"),
+    ("otter", "otter.n.02"),
+    ("palm_tree", "palm.n.03"),
+    ("pear", "pear.n.01"),
+    ("pickup_truck", "pickup.n.01"),
+    ("pine_tree", "pine.n.01"),
+    ("plain", "plain.n.01"),
+    ("plate", "plate.n.04"),
+    ("poppy", "poppy.n.01"),
+    ("porcupine", "porcupine.n.01"),
+    ("possum", "opossum.n.02"),
+    ("rabbit", "rabbit.n.01"),
+    ("raccoon", "raccoon.n.02"),
+    ("ray", "ray.n.07"),
+    ("road", "road.n.01"),
+    ("rocket", "rocket.n.01"),
+    ("rose", "rose.n.01"),
+    ("sea", "sea.n.01"),
+    ("seal", "seal.n.09"),
+    ("shark", "shark.n.01"),
+    ("shrew", "shrew.n.02"),
+    ("skunk", "skunk.n.04"),
+    ("skyscraper", "skyscraper.n.01"),
+    ("snail", "snail.n.01"),
+    ("snake", "snake.n.01"),
+    ("spider", "spider.n.01"),
+    ("squirrel", "squirrel.n.01"),
+    ("streetcar", "streetcar.n.01"),
+    ("sunflower", "sunflower.n.01"),
+    ("sweet_pepper", "sweet_pepper.n.02"),
+    ("table", "table.n.02"),
+    ("tank", "tank.n.01"),
+    ("telephone", "telephone.n.01"),
+    ("television", "television.n.02"),
+    ("tiger", "tiger.n.02"),
+    ("tractor", "tractor.n.01"),
+    ("train", "train.n.01"),
+    ("trout", "trout.n.02"),
+    ("tulip", "tulip.n.01"),
+    ("turtle", "turtle.n.02"),
+    ("wardrobe", "wardrobe.n.01"),
+    ("whale", "whale.n.02"),
+    ("willow_tree", "willow.n.01"),
+    ("wolf", "wolf.n.01"),
+    ("woman", "woman.n.01"),
+    ("worm", "worm.n.01"),
+]
+
 
 class iCIFARDataset:
     def __init__(self):
@@ -137,7 +242,9 @@ class iCIFARDataset:
         assert batch < batch_count
 
         samples = []
-        classes_for_pool = self.sequence[batch : batch + classes_per_batch]
+        classes_for_pool = self.sequence[
+            (batch * classes_per_batch) : (batch + 1) * classes_per_batch
+        ]
 
         print(f"Retrieving images for classes {classes_for_pool}")
         for class_ in classes_for_pool:
@@ -174,3 +281,8 @@ class iCIFARDataset:
                 )
             ]
         return samples
+
+    def get_hypernymy_relation_source(self):
+        return knowledge.StaticRelationSource(
+            [(l, f"WN:{s}") for l, s in _labels_to_wordnet]
+        )

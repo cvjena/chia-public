@@ -7,4 +7,5 @@ matplotlib
 imageio
 numpy
 scipy
+nltk
 networkx

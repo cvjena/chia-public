@@ -2,13 +2,17 @@ from PyQt5 import QtWidgets
 from PyQt5 import QtGui
 from PyQt5 import QtCore
 
+from PIL import Image
+import os
+
 
 def explore(pool):
     app = QtWidgets.QApplication([])
     dialog = QtWidgets.QWidget()
-    dialog.setWindowTitle("Pool Explorer")
+    dialog.setWindowTitle(f"Pool Explorer ({len(pool):d} samples)")
 
     current_sample = None
+    current_resource_ids = None
     current_resource = None
 
     # Widgets
@@ -35,11 +39,15 @@ def explore(pool):
 
     def update_resource_id_list():
         nonlocal current_sample
+        nonlocal current_resource_ids
+
+        current_resource_ids = list(sorted(current_sample.get_resource_ids()))
+
         resource_id_list.clear()
         resource_id_list.clearSelection()
-        for resource_id in sorted(current_sample.data.keys()):
+        for resource_id in current_resource_ids:
 
-            resource = current_sample.data[resource_id]
+            resource = current_sample.get_resource(resource_id)
 
             if resource_id == "uid":
                 resource_id_list.addItem(f"UID: {resource}")
@@ -62,10 +70,11 @@ def explore(pool):
     def resource_id_list_item_clicked(currentRow):
         nonlocal current_sample
         nonlocal current_resource
+        nonlocal current_resource_ids
 
         if currentRow >= 0:
-            resource_id = list(sorted(current_sample.data.keys()))[currentRow]
-            current_resource = current_sample.data[resource_id]
+            resource_id = current_resource_ids[currentRow]
+            current_resource = current_sample.get_resource(resource_id)
             update_image_preview()
 
     def update_image_preview():
@@ -99,6 +108,36 @@ def explore(pool):
                     image_preview.setText(f"Error during preview creation: {ex}")
             else:
                 image_preview.setText("Unsupported image data.")
+        elif type(current_resource) is Image.Image:
+            try:
+                assert current_resource.mode == "RGB"
+                image_preview.setPixmap(
+                    QtGui.QPixmap(
+                        QtGui.QImage(
+                            current_resource.tobytes(),
+                            current_resource.width,
+                            current_resource.height,
+                            3 * current_resource.width,
+                            QtGui.QImage.Format_RGB888,
+                        )
+                    ).scaled(
+                        image_preview.width(),
+                        image_preview.height(),
+                        QtCore.Qt.KeepAspectRatio,
+                        QtCore.Qt.SmoothTransformation,
+                    )
+                )
+            except Exception as ex:
+                image_preview.setText(f"Error during preview creation: {ex}")
+        elif type(current_resource) is str and os.path.exists(current_resource):
+            image_preview.setPixmap(
+                QtGui.QPixmap(QtGui.QImage(current_resource)).scaled(
+                    image_preview.width(),
+                    image_preview.height(),
+                    QtCore.Qt.KeepAspectRatio,
+                    QtCore.Qt.SmoothTransformation,
+                )
+            )
         else:
             image_preview.setText("No image data.")
 

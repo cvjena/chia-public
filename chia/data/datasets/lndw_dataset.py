@@ -2,6 +2,7 @@ import uuid
 import os
 import csv
 from PIL import Image
+import numpy as np
 
 from chia.framework import configuration
 from chia import knowledge
@@ -16,7 +17,7 @@ class LNDWDataset:
             self.base_path = configuration.get(
                 "base_path", "/home/brust/datasets/lndw/dataset"
             )
-        self.classes = []
+        self.all_classes_even_unviable = []
         with open(os.path.join(self.base_path, "classes.csv")) as classes_file:
             reader = csv.reader(classes_file, delimiter=";")
             header = next(reader)
@@ -25,13 +26,30 @@ class LNDWDataset:
                 "class_name": "Class Name",
                 "individual_id": "No.",
                 "grade": "Grade",
+                "wordnet": "WordNet",
             }
             fields = {k: header.index(v) for k, v in fields.items()}
             for line in reader:
-                self.classes += [{k: line[v] for k, v in fields.items()}]
+                self.all_classes_even_unviable += [
+                    {k: line[v] for k, v in fields.items()}
+                ]
 
             self.viable_classes = [
-                class_ for class_ in self.classes if self._viable(class_)
+                class_
+                for class_ in self.all_classes_even_unviable
+                if self._viable(class_)
+            ]
+
+        self.wordnet_mapping = []
+        for class_ in self.viable_classes:
+            self.wordnet_mapping += [
+                (
+                    f"{class_['class_name']}{int(class_['individual_id']):02d}",
+                    f"WN:{class_['wordnet']}",
+                )
+            ]
+            self.wordnet_mapping += [
+                (f"{class_['class_name']}", f"WN:{class_['wordnet']}")
             ]
 
     def _viable(self, class_):
@@ -55,7 +73,7 @@ class LNDWDataset:
         the_image = Image.open(
             os.path.join(self.base_path, f"{int(class_['folder']):02d}", filename)
         )
-        the_image = the_image.resize((384, 384), Image.ANTIALIAS)
+        the_image = np.asarray(the_image.resize((384, 384), Image.ANTIALIAS))
 
         if individuals:
             label_string = f"{class_['class_name']}{int(class_['individual_id']):02d}"
@@ -94,6 +112,9 @@ class LNDWDataset:
                 samples += [the_sample]
 
         return samples
+
+    def get_hypernymy_relation_source(self):
+        return knowledge.StaticRelationSource(self.wordnet_mapping)
 
     def get_kb(self):
         return knowledge.KnowledgeBase()
