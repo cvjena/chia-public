@@ -1,29 +1,32 @@
 from nltk.corpus import wordnet
 
 from . import RelationSource
+from chia.framework import caching
 
 
 class WordNetAccess(RelationSource):
-    def get_hypernyms(self, synset):
+    def _get_hypernyms(self, synset):
         return {
             f"WordNet3.0::{hsynset.name()}"
             for hsynset in wordnet.synset(synset).hypernyms()
         }
 
-    def get_hyponyms(self, synset):
+    def _get_hyponyms(self, synset):
         return {
             f"WordNet3.0::{hsynset.name()}"
             for hsynset in wordnet.synset(synset).hyponyms()
         }
 
+    @caching.read_only
     def get_right_for(self, uid_left):
         if uid_left.startswith("WordNet3.0::"):
-            return self.get_hypernyms(uid_left[12:])
+            return self._get_hypernyms(uid_left[12:])
         else:
             return set()
 
+    @caching.read_only
     def get_left_for(self, uid_right):
         if uid_right.startswith("WordNet3.0::"):
-            return self.get_hyponyms(uid_right[12:])
+            return self._get_hyponyms(uid_right[12:])
         else:
             return set()
