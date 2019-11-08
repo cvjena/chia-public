@@ -1,11 +1,10 @@
-import uuid
 import os
-import json
 
 from chia.framework import configuration
-from chia.data import sample
+from chia.data import sample, datasets
 
 _namespace_uid = "ILSVRC2012"
+
 _wordnet_id_to_synset = {
     "n00001740": "entity.n.01",
     "n00002137": "abstraction.n.06",
@@ -1870,7 +1869,7 @@ _wordnet_id_to_synset = {
 }
 
 
-class ILSVRC2012Dataset:
+class ILSVRC2012Dataset(datasets.Dataset):
     def __init__(self):
         with configuration.ConfigurationContext(self.__class__.__name__):
             self.base_path = configuration.get("base_path", "/home/datasets/ILSVRC2012")
@@ -1878,38 +1877,83 @@ class ILSVRC2012Dataset:
         with open(os.path.join(self.base_path, "synsets.txt")) as wnids_txt:
             self.wordnet_ids = [x.strip() for x in wnids_txt]
 
+        self.displayed_not_found_warning = False
+
+    def setup(self, **kwargs):
+        pass
+
+    def train_pool_count(self):
+        return 1
+
+    def test_pool_count(self):
+        return 1
+
+    def train_pool(self, index, label_resource_id):
+        assert index == 0
+        return self.get_training_pool(label_resource_id)
+
+    def test_pool(self, index, label_resource_id):
+        assert index == 0
+        return self.get_validation_pool(label_resource_id)
+
+    def namespace(self):
+        return _namespace_uid
+
+    def relations(self):
+        return ["hypernymy"]
+
+    def relation(self, key):
+        if key == "hypernymy":
+            return self.get_hypernymy_relation_source()
+        else:
+            raise ValueError(f'Unknown relation "{key}"')
+
     def get_training_pool(self, label_resource_id):
         training_samples = []
         for wordnet_id in self.wordnet_ids:
             synset_name = _wordnet_id_to_synset[wordnet_id]
             synset_path = os.path.join(self.base_path, "train", wordnet_id)
-            for i, filename in enumerate(os.listdir(synset_path)):
-                training_samples += [
-                    self._build_sample(
-                        filename, i, label_resource_id, synset_name, "train"
-                    )
-                ]
+            if os.path.exists(synset_path):
+                for i, filename in enumerate(os.listdir(synset_path)):
+                    training_samples += [
+                        self._build_sample(
+                            filename, i, label_resource_id, synset_name, "train"
+                        )
+                    ]
+            else:
+                if not self.displayed_not_found_warning:
+                    print(f"Warning: {synset_path} not found, returning empty pool.")
+                self.displayed_not_found_warning = True
+
+        return training_samples
 
     def get_validation_pool(self, label_resource_id):
         validation_samples = []
         for wordnet_id in self.wordnet_ids:
             synset_name = _wordnet_id_to_synset[wordnet_id]
             synset_path = os.path.join(self.base_path, "val", wordnet_id)
-            for i, filename in enumerate(os.listdir(synset_path)):
-                validation_samples += [
-                    self._build_sample(
-                        filename, i, label_resource_id, synset_name, "val"
-                    )
-                ]
+            if os.path.exists(synset_path):
+                for i, filename in enumerate(os.listdir(synset_path)):
+                    validation_samples += [
+                        self._build_sample(
+                            filename, i, label_resource_id, synset_name, "val"
+                        )
+                    ]
+            else:
+                if not self.displayed_not_found_warning:
+                    print(f"Warning: {synset_path} not found, returning empty pool.")
+                self.displayed_not_found_warning = True
+
+        return validation_samples
 
     def _build_sample(self, filename, i, label_resource_id, synset_name, split):
         my_sample = (
             sample.Sample(
                 source=self.__class__.__name__,
-                uid=f"{_namespace_uid}:{split}:{synset_name}:{i}",
+                uid=f"{_namespace_uid}::{split}:{synset_name}:{i}",
             )
             .add_resource(
-                self.__class__.__name__, label_resource_id, f"WN:{synset_name}"
+                self.__class__.__name__, label_resource_id, f"WordNet3.0::{synset_name}"
             )
             .add_resource(self.__class__.__name__, "image_location", str(filename))
         )

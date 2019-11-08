@@ -25,7 +25,7 @@ class SacredObserver(instrumentation.InstrumentationObserver):
         self.sacred_run = None
 
         self.done = None
-        self.in_run_func = None
+        self.run_object_available = None
         self.sacred_thread = None
 
     def report(self, metric, value, steps, contexts):
@@ -43,16 +43,26 @@ class SacredObserver(instrumentation.InstrumentationObserver):
 
         def experiment_main(_run):
             self.sacred_run = _run
-            self.in_run_func.set()
+            self.run_object_available.set()
             self.done.wait()
 
         self.sacred_experiment.main(experiment_main)
 
-        self.in_run_func = threading.Event()
+        sacred_compatible_config_dict = {
+            str(k).replace(".", "/"): v
+            for k, v in configuration.dump_custom_dict().items()
+        }
+
+        self.sacred_experiment.add_config(**sacred_compatible_config_dict)
+
+        self.run_object_available = threading.Event()
         self.done = threading.Event()
         self.sacred_thread = threading.Thread(target=self.sacred_experiment.run)
         self.sacred_thread.start()
-        self.in_run_func.wait()
+        self.run_object_available.wait()
+
+        # print("Custom configuration:")
+        # print(configuration.dump_custom_json())
 
     def on_context_exit(self):
         super().on_context_exit()

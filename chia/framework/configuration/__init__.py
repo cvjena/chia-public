@@ -112,12 +112,20 @@ def _dump_dict():
     return dump_dict_default, dump_dict_custom
 
 
-def dump_custom():
+def dump_custom_json():
     return json.dumps(_dump_dict()[1], indent=2)
 
 
-def dump_default():
+def dump_default_json():
     return json.dumps(_dump_dict()[0], indent=2)
+
+
+def dump_custom_dict():
+    return dict(_dump_dict()[1])
+
+
+def dump_default_dict():
+    return dict(_dump_dict()[0])
 
 
 def _load_json(path):
@@ -174,18 +182,26 @@ def main_context(func):
                 print(f"Exception during configuration parsing: {ex}.")
 
             print("Configuration dump (custom):")
-            print(dump_custom())
+            print(dump_custom_json())
             try:
                 func()
             except Exception as ex:
+                the_ex = ex
                 print(f"Unhandled exception during execution: {ex}.")
+            else:
+                the_ex = None
 
+            print("Configuration dump (custom):")
+            print(dump_custom_json())
             print("Configuration dump (default):")
-            print(dump_default())
+            print(dump_default_json())
 
             # Check access counter
             for key, value_dict in _config_dict.items():
                 if value_dict["access_ctr"] == 0:
                     print(f"WARNING: configuration entry {key} unused.")
+
+            if the_ex is not None:
+                raise the_ex
 
     return wrapper

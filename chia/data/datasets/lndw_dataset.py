@@ -1,4 +1,3 @@
-import uuid
 import os
 import csv
 from PIL import Image
@@ -6,12 +5,12 @@ import numpy as np
 
 from chia.framework import configuration
 from chia import knowledge
-from chia.data import sample
+from chia.data import sample, datasets
 
-_namespace_uuid = uuid.UUID("01a51cff-15ed-40cd-b921-bd4232d7288e")
+_namespace_uid = "LNDW"
 
 
-class LNDWDataset:
+class LNDWDataset(datasets.Dataset):
     def __init__(self):
         with configuration.ConfigurationContext(self.__class__.__name__):
             self.base_path = configuration.get(
@@ -44,13 +43,52 @@ class LNDWDataset:
         for class_ in self.viable_classes:
             self.wordnet_mapping += [
                 (
-                    f"{class_['class_name']}{int(class_['individual_id']):02d}",
-                    f"WN:{class_['wordnet']}",
+                    f"{_namespace_uid}::{class_['class_name']}{int(class_['individual_id']):02d}",
+                    f"WordNet3.0::{class_['wordnet']}",
                 )
             ]
             self.wordnet_mapping += [
-                (f"{class_['class_name']}", f"WN:{class_['wordnet']}")
+                (
+                    f"{_namespace_uid}::{class_['class_name']}",
+                    f"WordNet3.0::{class_['wordnet']}",
+                )
             ]
+
+        # Attributes are set in setup()
+        self.individuals = None
+        self.setup()
+
+    def setup(self, individuals=False, **kwargs):
+        self.individuals = individuals
+
+    def setups(self):
+        return [{"individuals": True}, {"individuals": False}]
+
+    def train_pool_count(self):
+        return 1
+
+    def test_pool_count(self):
+        return 1
+
+    def train_pool(self, index, label_resource_id):
+        assert index == 0
+        return self.get_train_pool(label_resource_id, self.individuals)
+
+    def test_pool(self, index, label_resource_id):
+        assert index == 0
+        return self.get_test_pool(label_resource_id, self.individuals)
+
+    def namespace(self):
+        return _namespace_uid
+
+    def relations(self):
+        return ["hypernymy"]
+
+    def relation(self, key):
+        if key == "hypernymy":
+            return self.get_hypernymy_relation_source()
+        else:
+            raise ValueError(f'Unknown relation "{key}"')
 
     def _viable(self, class_):
         return float(class_["grade"]) <= 3.0
@@ -73,18 +111,18 @@ class LNDWDataset:
         the_image = Image.open(
             os.path.join(self.base_path, f"{int(class_['folder']):02d}", filename)
         )
-        the_image = np.asarray(the_image.resize((384, 384), Image.ANTIALIAS))
+        the_image = np.asarray(the_image.resize((256, 256), Image.ANTIALIAS))
 
         if individuals:
-            label_string = f"{class_['class_name']}{int(class_['individual_id']):02d}"
+            label_string = f"{_namespace_uid}::{class_['class_name']}{int(class_['individual_id']):02d}"
         else:
-            label_string = f"{class_['class_name']}"
+            label_string = f"{_namespace_uid}::{class_['class_name']}"
 
         # Build sample
         the_sample = (
             sample.Sample(
                 source=self.__class__.__name__,
-                uid=uuid.uuid5(_namespace_uuid, f"{class_}.{filename}"),
+                uid=f"{_namespace_uid}::{class_}.{filename}",
             )
             .add_resource(self.__class__.__name__, "input_img_np", the_image)
             .add_resource(self.__class__.__name__, label_resource_id, label_string)

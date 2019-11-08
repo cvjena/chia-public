@@ -1,14 +1,14 @@
 import numpy as np
 import pickle as pkl
-import uuid
 import os
 import glob
 
-from chia.data import sample
+from chia.data import sample, datasets
 from chia.framework import configuration
 from chia import knowledge
 
-_namespace_uuid = uuid.UUID("280c9580-aaf4-4dab-9f0b-3c3b52e00bb8")
+_namespace_uid = "CORe50"
+
 _labels_to_wordnet = [
     ("plug_adapter1", "plug.n.05"),
     ("plug_adapter2", "plug.n.05"),
@@ -63,7 +63,7 @@ _labels_to_wordnet = [
 ]
 
 
-class CORe50Dataset:
+class CORe50Dataset(datasets.Dataset):
     def __init__(self):
         with configuration.ConfigurationContext(self.__class__.__name__):
             self.base_path = configuration.get(
@@ -83,6 +83,49 @@ class CORe50Dataset:
             self.labels_to_names = pkl.load(labels_to_names_file)
 
         self.path_to_index = {path: index for index, path in enumerate(self.paths)}
+
+        # Attributes are assigned in setup()
+        self.scenario = None
+        self.run = None
+        self.setup()
+
+    def setups(self):
+        setups = []
+        for scenario in ["ni", "nc", "nic"]:
+            for run in range(self.get_run_count(scenario)):
+                setups += [{"scenario": scenario, "run": run}]
+        return setups
+
+    def setup(self, scenario="nic", run=0, **kwargs):
+        self.scenario = scenario
+        self.run = run
+
+    def train_pool_count(self):
+        return self.get_train_pool_count(self.scenario, self.run)
+
+    def test_pool_count(self):
+        return 1
+
+    def train_pool(self, index, label_resource_id):
+        return self.get_pool_for(
+            self.scenario, self.run, f"train_batch_{index:02d}", label_resource_id
+        )
+
+    def test_pool(self, index, label_resource_id):
+        assert index == 0
+        return self.get_pool_for(self.scenario, self.run, f"test", label_resource_id)
+
+    def namespace(self):
+        return _namespace_uid
+
+    def relations(self):
+        return ["hypernymy"]
+
+    def relation(self, key):
+        if key == "hypernymy":
+            return self.get_hypernymy_relation_source()
+        else:
+            raise ValueError(f'Unknown relation "{key}"')
 
     def get_train_pool_count(self, scenario, run):
         scenario = str(scenario).lower()
@@ -129,8 +172,7 @@ class CORe50Dataset:
                 path, class_id = line.strip().split(" ")
                 samples += [
                     sample.Sample(
-                        source=self.__class__.__name__,
-                        uid=uuid.uuid5(_namespace_uuid, str(path)),
+                        source=self.__class__.__name__, uid=f"{_namespace_uid}::{path}"
                     )
                     .add_resource(
                         self.__class__.__name__,
@@ -140,7 +182,7 @@ class CORe50Dataset:
                     .add_resource(
                         self.__class__.__name__,
                         label_resource_id,
-                        label_map[int(class_id)],
+                        f"{_namespace_uid}::{label_map[int(class_id)]}",
                     )
                 ]
 
@@ -148,5 +190,8 @@ class CORe50Dataset:
 
     def get_hypernymy_relation_source(self):
         return knowledge.StaticRelationSource(
-            [(l, f"WN:{s}") for l, s in _labels_to_wordnet]
+            [
+                (f"{_namespace_uid}::{l}", f"WordNet3.0::{s}")
+                for l, s in _labels_to_wordnet
+            ]
         )

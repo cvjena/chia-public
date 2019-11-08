@@ -7,6 +7,8 @@ class Concept:
     def __init__(self, uid=None, data=None):
         if data is not None:
             self.data = data
+            if uid is not None:
+                raise ValueError("Cannot supply a UID if data is given.")
         else:
             if uid is not None:
                 self.data = {"uid": uid}
@@ -67,10 +69,10 @@ class KnowledgeBase:
 
         self.update_relation(uid, True)
 
-    def add_concept(self, uid, data=None, dont_update_relations=False):
+    def add_concept(self, uid=None, data=None, dont_update_relations=False):
         concept = Concept(uid=uid, data=data)
         concept.data["observations"] = 0
-        self.all_concepts[uid] = concept
+        self.all_concepts[concept.data["uid"]] = concept
         self.concept_stamp += 1
 
         if not dont_update_relations:
@@ -118,8 +120,10 @@ class KnowledgeBase:
             if len(updated_concepts) > 0:
                 for concept_uid in updated_concepts:
                     self.add_concept(
-                        concept_uid,
-                        data={"comment": "Automatically added by relation update"},
+                        data={
+                            "comment": "Automatically added by relation update",
+                            "uid": concept_uid,
+                        },
                         dont_update_relations=True,
                     )
                 made_changes_in_iteration = True

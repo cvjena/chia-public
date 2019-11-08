@@ -1,18 +1,15 @@
-import uuid
 import os
-import json
 from PIL import Image
 import numpy as np
 
 from chia.framework import configuration
-from chia.data import sample
+from chia.data import sample, datasets
 from chia import knowledge
-
 
 _namespace_uid = "NABirds"
 
 
-class NABirdsDataset:
+class NABirdsDataset(datasets.Dataset):
     def __init__(self):
         with configuration.ConfigurationContext(self.__class__.__name__):
             self.base_path = configuration.get("base_path", "/home/datasets/nabirds")
@@ -23,7 +20,9 @@ class NABirdsDataset:
             tuples = [x.split(sep=" ", maxsplit=1) for x in lines]
             tuples = [(int(k), str(v)) for (k, v) in tuples]
 
-            self.nabirds_id_to_label = {k: f"NAB:{int(k):03d}{v}" for (k, v) in tuples}
+            self.nabirds_id_to_label = {
+                k: f"{_namespace_uid}::{int(k):03d}{v}" for (k, v) in tuples
+            }
 
             self.nabirds_ids = {k for (k, v) in tuples}
 
@@ -76,6 +75,35 @@ class NABirdsDataset:
                 for (k, v) in tuples
             ]
 
+    def setup(self, **kwargs):
+        pass
+
+    def train_pool_count(self):
+        return 1
+
+    def test_pool_count(self):
+        return 1
+
+    def train_pool(self, index, label_resource_id):
+        assert index == 0
+        return self.get_train_pool(label_resource_id)
+
+    def test_pool(self, index, label_resource_id):
+        assert index == 0
+        return self.get_test_pool(label_resource_id)
+
+    def namespace(self):
+        return _namespace_uid
+
+    def relations(self):
+        return ["hypernymy"]
+
+    def relation(self, key):
+        if key == "hypernymy":
+            return self.get_hypernymy_relation_source()
+        else:
+            raise ValueError(f'Unknown relation "{key}"')
+
     def get_train_pool(self, label_resource_id):
         return [
             self._build_sample(image, id, label_resource_id, "train")
@@ -92,7 +120,7 @@ class NABirdsDataset:
         return (
             sample.Sample(
                 source=self.__class__.__name__,
-                uid=f"{_namespace_uid}:{split}:{image_id}",
+                uid=f"{_namespace_uid}::{split}:{image_id}",
             )
             .add_resource(
                 self.__class__.__name__,

@@ -39,3 +39,16 @@ class ProbabilityOutputModel(IncrementalModel, ABC):
     @abstractmethod
     def predict_probabilities(self, samples, prediction_dist_resource_id):
         pass
+
+
+from chia.methods.incrementallearning import keras_dfn
+
+_method_mapping = {"keras::DFN": keras_dfn.DFNKerasIncrementalModel}
+
+
+def methods():
+    return _method_mapping.keys()
+
+
+def method(key, cls):
+    return _method_mapping[key](cls)

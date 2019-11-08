@@ -2,11 +2,10 @@ import os
 import imageio
 
 from chia import knowledge
-from chia.data import sample
+from chia.data import sample, datasets
 from chia.framework import configuration
 
-_icubworld28_namespace_uid = "ICW28"
-
+_namespace_uid = "iCubWorld28"
 
 _icubworld28_labels_to_wordnet = [
     ("cup", "cup.n.01"),
@@ -19,12 +18,39 @@ _icubworld28_labels_to_wordnet = [
 ]
 
 
-class iCubWorld28Dataset:
+class iCubWorld28Dataset(datasets.Dataset):
     def __init__(self):
         with configuration.ConfigurationContext(self.__class__.__name__):
             self.base_path = configuration.get(
                 "base_path", "/home/brust/datasets/icubworld28"
             )
+
+    def setup(self, **kwargs):
+        pass
+
+    def train_pool_count(self):
+        return 4
+
+    def test_pool_count(self):
+        return 4
+
+    def train_pool(self, index, label_resource_id):
+        return self.get_train_pool_for(index + 1, label_resource_id)
+
+    def test_pool(self, index, label_resource_id):
+        return self.get_test_pool_for(index + 1, label_resource_id)
+
+    def namespace(self):
+        return _namespace_uid
+
+    def relations(self):
+        return ["hypernymy"]
+
+    def relation(self, key):
+        if key == "hypernymy":
+            return self.get_hypernymy_relation_source()
+        else:
+            raise ValueError(f'Unknown relation "{key}"')
 
     def get_train_pool_for(self, day, label_resource_id):
         return self._build_samples("train", day, label_resource_id)
@@ -48,12 +74,12 @@ class iCubWorld28Dataset:
                     samples += [
                         sample.Sample(
                             source=self.__class__.__name__,
-                            uid=f"{_icubworld28_namespace_uid}:{split}:{day}:{category}{individual}:{filename}",
+                            uid=f"{_namespace_uid}::{split}:{day}:{category}{individual}:{filename}",
                         )
                         .add_resource(
                             self.__class__.__name__,
                             label_resource_id,
-                            f"{category}{individual}",
+                            f"{_namespace_uid}::{category}{individual}",
                         )
                         .add_resource(
                             self.__class__.__name__,
@@ -67,5 +93,5 @@ class iCubWorld28Dataset:
         relation = []
         for l, s in _icubworld28_labels_to_wordnet:
             for individual in range(1, 4 + 1):
-                relation += [(f"{l}{individual}", f"WN:{s}")]
+                relation += [(f"{_namespace_uid}::{l}{individual}", f"WordNet3.0::{s}")]
         return knowledge.StaticRelationSource(relation)

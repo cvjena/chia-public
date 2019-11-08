@@ -24,21 +24,20 @@ class DFNKerasIncrementalModel(KerasIncrementalModel):
         self.X = []
         self.y = []
 
-        self.optimizer = tf.keras.optimizers.Adam()
-
     def observe_inner(self, samples, gt_resource_id):
         assert len(samples) > 0
 
         total_bs = self.get_auto_batchsize(
             samples[0].get_resource("input_img_np").shape
         )
+        exposure_base = 3333 if not self.do_train_feature_extractor else 6666
         old_bs = 0
         new_bs = total_bs
         exposures = (
             len(samples)
             * self.exposure_coef
             / np.log10(len(samples))
-            * (3333 / math.sqrt(total_bs))
+            * (exposure_base / math.sqrt(total_bs))
         )
         inner_steps = int(max(1, exposures // total_bs))
 

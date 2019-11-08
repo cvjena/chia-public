@@ -1,13 +1,11 @@
-import tensorflow as tf
-import uuid
 import random
 import numpy as np
 
-from chia.data import sample
+from chia.data import sample, datasets
 from chia import knowledge
 
+_namespace_uid = f"iCIFAR"
 
-_namespace_uuid = uuid.UUID("458e91ef-6c48-428b-9b9e-a136d1d8fa7f")
 _label_names = [
     "apple",
     "aquarium_fish",
@@ -215,8 +213,10 @@ _labels_to_wordnet = [
 ]
 
 
-class iCIFARDataset:
+class iCIFARDataset(datasets.Dataset):
     def __init__(self):
+        import tensorflow as tf
+
         (self.train_X, self.train_y), (
             self.test_X,
             self.test_y,
@@ -228,6 +228,38 @@ class iCIFARDataset:
         sorting_sequence_train = np.argsort(self.train_y[:, 0], kind="stable")
         self.train_X = self.train_X[sorting_sequence_train]
         self.train_y = self.train_y[sorting_sequence_train]
+
+        # Attributes are assigned in setup()
+        self.classes_per_batch = None
+        self.setup()
+
+    def setup(self, classes_per_batch=4, **kwargs):
+        self.classes_per_batch = classes_per_batch
+
+    def train_pool_count(self):
+        return self.get_train_pool_count(self.classes_per_batch)
+
+    def test_pool_count(self):
+        return 1
+
+    def train_pool(self, index, label_resource_id):
+        return self.get_train_pool_for(index, label_resource_id, self.classes_per_batch)
+
+    def test_pool(self, index, label_resource_id):
+        assert index == 0
+        return self.get_test_pool(label_resource_id)
+
+    def namespace(self):
+        return _namespace_uid
+
+    def relations(self):
+        return ["hypernymy"]
+
+    def relation(self, key):
+        if key == "hypernymy":
+            return self.get_hypernymy_relation_source()
+        else:
+            raise ValueError(f'Unknown relation "{key}"')
 
     def _update_sequence(self):
         random.seed(self.sequence_seed)
@@ -246,7 +278,7 @@ class iCIFARDataset:
             (batch * classes_per_batch) : (batch + 1) * classes_per_batch
         ]
 
-        print(f"Retrieving images for classes {classes_for_pool}")
+        # print(f"Retrieving images for classes {classes_for_pool}")
         for class_ in classes_for_pool:
             training_data_range = list(range(500 * class_, 500 * (class_ + 1)))
             class_X = self.train_X[500 * class_ : 500 * (class_ + 1)]
@@ -271,18 +303,21 @@ class iCIFARDataset:
             samples += [
                 sample.Sample(
                     source=self.__class__.__name__,
-                    uid=uuid.uuid5(_namespace_uuid, f"{prefix}.{data_id}"),
+                    uid=f"{_namespace_uid}::{prefix}.{data_id}",
                 )
                 .add_resource(self.__class__.__name__, "input_img_np", np_image)
                 .add_resource(
                     self.__class__.__name__,
                     label_resource_id,
-                    _label_names[int(class_label)],
+                    f"{_namespace_uid}::{_label_names[int(class_label)]}",
                 )
             ]
         return samples
 
     def get_hypernymy_relation_source(self):
         return knowledge.StaticRelationSource(
-            [(l, f"WN:{s}") for l, s in _labels_to_wordnet]
+            [
+                (f"{_namespace_uid}::{l}", f"WordNet3.0::{s}")
+                for l, s in _labels_to_wordnet
+            ]
         )

@@ -1,53 +1,70 @@
 import uuid
+import abc
 
 from chia.data.pool import FixedPool
 from chia.data.sample import Sample
 from chia.knowledge import KnowledgeBase
 
 
-_namespace_uuid = uuid.UUID("ef3158cf-056a-4ace-a766-4ea93ace5e59")
+class Dataset(abc.ABC):
+    @abc.abstractmethod
+    def setup(self, **kwargs):
+        pass
+
+    def setups(self):
+        return [dict()]
+
+    @abc.abstractmethod
+    def train_pool_count(self):
+        pass
+
+    @abc.abstractmethod
+    def test_pool_count(self):
+        pass
+
+    @abc.abstractmethod
+    def train_pool(self, index, label_resource_id):
+        pass
+
+    @abc.abstractmethod
+    def test_pool(self, index, label_resource_id):
+        pass
+
+    @abc.abstractmethod
+    def namespace(self):
+        pass
+
+    @abc.abstractmethod
+    def relations(self):
+        pass
+
+    @abc.abstractmethod
+    def relation(self, key):
+        pass
 
 
-class FashionMNISTDataset:
-    def __init__(self):
-        import tensorflow as tf
+from chia.data.datasets import (
+    core50_dataset,
+    icifar_dataset,
+    icubworld28_dataset,
+    ilsvrc2012_dataset,
+    lndw_dataset,
+    nabirds_dataset,
+)
 
-        fashion_mnist = tf.keras.datasets.fashion_mnist
-        (self.train_images, self.train_labels), (
-            self.test_images,
-            self.test_labels,
-        ) = fashion_mnist.load_data()
+_dataset_mapping = {
+    "CORe50": core50_dataset.CORe50Dataset,
+    "iCIFAR": icifar_dataset.iCIFARDataset,
+    "iCubWorld28": icubworld28_dataset.iCubWorld28Dataset,
+    "ILSVRC2012": ilsvrc2012_dataset.ILSVRC2012Dataset,
+    "LNdW": lndw_dataset.LNDWDataset,
+    "NABirds": nabirds_dataset.NABirdsDataset,
+}
 
-    def get_train_pool(self, label_resource_id):
-        return FashionMNISTDataset._get_pool(
-            self.train_images, self.train_labels, "train", label_resource_id
-        )
 
-    def get_test_pool(self, label_resource_id):
-        return FashionMNISTDataset._get_pool(
-            self.test_images, self.test_labels, "test", label_resource_id
-        )
+def datasets():
+    return _dataset_mapping.keys()
 
-    def get_kb(self):
-        return KnowledgeBase()
 
-    @staticmethod
-    def _get_pool(images, labels, uid_suffix, label_resource_id):
-        assert images.shape[0] == labels.shape[0]
-
-        samples = []
-        for i in range(images.shape[0]):
-            samples += [
-                Sample(
-                    source="FashionMNISTDataset",
-                    uid=uuid.uuid5(_namespace_uuid, f"{i:6d}.{uid_suffix}"),
-                )
-                .add_resource(
-                    "FashionMNISTDataset",
-                    "input_img_np",
-                    images[i].reshape([28, 28, 1]).repeat(3, axis=2),
-                )
-                .add_resource("FashionMNISTDataset", label_resource_id, labels[i])
-            ]
-
-        return FixedPool(samples)
+def dataset(key) -> Dataset:
+    return _dataset_mapping[key]()
