@@ -33,15 +33,24 @@ class KnowledgeBase:
     def is_known(self, concept_uid):
         return concept_uid in self.all_concepts.keys()
 
-    def observe_concept(self, concept_uid):
+    def observe_concepts(self, concept_uids):
         new_concept = False
-        if not self.is_known(concept_uid):
-            self.add_concept(concept_uid)
-            new_concept = True
+        for concept_uid in concept_uids:
+            if not self.is_known(concept_uid):
+                self.add_concept(concept_uid, dont_update_relations=True)
+                new_concept = True
 
-        self.all_concepts[concept_uid].data["observations"] += 1
+            self.all_concepts[concept_uid].data["observations"] += 1
+
         self.observation_stamp += 1
+
+        if new_concept:
+            self.update_all_relations(force_graph_update=True)
+
         return new_concept
+
+    def observe_concept(self, concept_uid):
+        return self.observe_concepts([concept_uid])
 
     def add_relation(
         self,
