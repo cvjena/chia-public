@@ -17,14 +17,14 @@ class WordNetAccess(RelationSource):
             for hsynset in wordnet.synset(synset).hyponyms()
         }
 
-    @caching.read_only
+    @caching.read_only_for_positional_args
     def get_right_for(self, uid_left):
         if uid_left.startswith("WordNet3.0::"):
             return self._get_hypernyms(uid_left[12:])
         else:
             return set()
 
-    @caching.read_only
+    @caching.read_only_for_positional_args
     def get_left_for(self, uid_right):
         if uid_right.startswith("WordNet3.0::"):
             return self._get_hyponyms(uid_right[12:])
