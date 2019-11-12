@@ -84,6 +84,9 @@ class IDKEmbeddingBasedKerasHC(EmbeddingBasedKerasHC):
                 if uid not in self.observed_uids:
                     sorted_tuples[i] = (uid, 0.0)
 
+            total_scores = sum([p for uid, p in sorted_tuples])
+            sorted_tuples = [(uid, p / total_scores) for uid, p in sorted_tuples]
+
         return list(sorted_tuples)
 
     def update_embedding(self):
