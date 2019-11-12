@@ -137,7 +137,6 @@ def _load_json(path):
 
 
 def _update(config_key, value):
-    value = eval(value)
     config_key_components = config_key.split(".")
 
     # Create matching contexts
@@ -159,6 +158,13 @@ def main_context(func):
     def wrapper():
         with ConfigurationContext("global") as ctx:
             try:
+                if os.path.exists("configuration.json"):
+                    _load_json("configuration.json")
+            except Exception as ex:
+                print(f"Exception during defaults loading: {ex}")
+                raise ex
+
+            try:
                 import sys
                 import argparse
 
@@ -169,6 +175,7 @@ def main_context(func):
                     if "=" in unknown_argument:
                         # Parse assignment
                         config_key, value = unknown_argument.split("=", 2)
+                        value = eval(value)
                         _update(config_key, value)
                     else:
                         if os.path.exists(unknown_argument):
@@ -180,6 +187,7 @@ def main_context(func):
 
             except Exception as ex:
                 print(f"Exception during configuration parsing: {ex}.")
+                raise ex
 
             print("Configuration dump (custom):")
             print(dump_custom_json())
