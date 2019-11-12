@@ -53,7 +53,8 @@ class SacredObserver(instrumentation.InstrumentationObserver):
             for k, v in configuration.dump_custom_dict().items()
         }
 
-        self.sacred_experiment.add_config(**sacred_compatible_config_dict)
+        if len(sacred_compatible_config_dict) > 0:
+            self.sacred_experiment.add_config(**sacred_compatible_config_dict)
 
         self.run_object_available = threading.Event()
         self.done = threading.Event()
