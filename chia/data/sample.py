@@ -54,6 +54,12 @@ class Sample:
             self.data["_lazy_resources"].keys()
         )
 
+    def has_resource(self, resource_id):
+        return (
+            resource_id in self.data.keys()
+            or resource_id in self.data["_lazy_resources"].keys()
+        )
+
     def __eq__(self, other):
         return self.data["uid"] == other.data["uid"]
 
