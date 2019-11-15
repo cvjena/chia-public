@@ -1,6 +1,7 @@
 import tensorflow as tf
 import tensorflow_addons as tfa
 import math
+import numpy as np
 
 from chia.framework import configuration
 
@@ -33,6 +34,11 @@ class KerasDataAugmentation:
                 "random_saturation_factors", (0.6, 1.6)
             )
 
+            self.do_random_scale = configuration.get("do_random_scale", True)
+            self.random_scale_factors = configuration.get(
+                "random_scale_factors", (0.5, 2.0)
+            )
+
     @tf.function
     def process(self, sample_batch):
         sample_batch = tf.map_fn(self._process_sample, sample_batch)
@@ -54,15 +60,8 @@ class KerasDataAugmentation:
                 interpolation="BILINEAR",
             )
 
-        if self.do_random_crop:
-            crop_shape = sample.shape
-            crop_px_h = (
-                tf.cast(crop_shape[0] * self.random_crop_factor, dtype=tf.int32) // 2
-            )
-            sample = tf.pad(
-                sample, [[crop_px_h, crop_px_h], [crop_px_h, crop_px_h], [0, 0]]
-            )
-            sample = tf.image.random_crop(sample, crop_shape)
+        if self.do_random_crop or self.do_scale:
+            sample = self._inner_random_crop_or_scale(sample)
 
         if self.do_random_brightness_and_contrast:
             sample = tf.image.random_brightness(sample, self.random_brightness_factor)
@@ -73,3 +72,40 @@ class KerasDataAugmentation:
             sample = tf.image.random_saturation(sample, *self.random_saturation_factors)
 
         return sample
+
+    @tf.function
+    def _inner_random_crop_or_scale(self, x: tf.Tensor) -> tf.Tensor:
+        if self.do_random_scale:
+            scale = tf.random.uniform(
+                shape=[],
+                minval=self.random_scale_factors[0],
+                maxval=self.random_scale_factors[1],
+            )
+        else:
+            scale = 1.0
+
+        width = 1.0 / scale
+        height = 1.0 / scale
+
+        if self.do_random_crop:
+            left_min = -self.random_crop_factor
+            left_max = 1.0 + self.random_crop_factor - width
+            top_min = -self.random_crop_factor
+            top_max = 1.0 + self.random_crop_factor - height
+        else:
+            left_min = 0.0
+            left_max = 1.0 - width
+            top_min = 0.0
+            top_max = 1.0 - height
+
+        left = tf.random.uniform(shape=[], minval=left_min, maxval=left_max)
+        top = tf.random.uniform(shape=[], minval=top_min, maxval=top_max)
+        boxes = [[top, left, top + height, left + width]]
+
+        crop_shape = (x.shape[0], x.shape[1])
+        # Create different crops for an image
+        crops = tf.image.crop_and_resize(
+            [x], boxes=boxes, box_indices=[0], crop_size=crop_shape
+        )
+        # Return a random crop
+        return crops[0]
