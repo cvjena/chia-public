@@ -82,6 +82,12 @@ class KerasIncrementalModel(ProbabilityOutputModel):
     def observe_inner(self, samples, gt_resource_id):
         pass
 
+    def save_inner(self, path):
+        pass
+
+    def restore_inner(self, path):
+        pass
+
     def observe(self, samples, gt_resource_id):
         self.cls.observe(samples, gt_resource_id)
         self.observe_inner(samples, gt_resource_id)
@@ -121,10 +127,12 @@ class KerasIncrementalModel(ProbabilityOutputModel):
 
     def save(self, path):
         self.feature_extractor.save_weights(path + "_features.h5")
+        self.save_inner(path)
         self.cls.save(path)
 
     def restore(self, path):
         self.feature_extractor.load_weights(path + "_features.h5")
+        self.restore_inner(path)
         self.cls.restore(path)
 
     def build_image_batch(self, samples):

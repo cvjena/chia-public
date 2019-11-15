@@ -2,6 +2,7 @@ import random
 import math
 import numpy as np
 import tensorflow as tf
+import pickle as pkl
 
 from chia.framework.instrumentation import (
     InstrumentationContext,
@@ -82,3 +83,11 @@ class DFNKerasIncrementalModel(KerasIncrementalModel):
                 self.y.append(sample.get_resource(gt_resource_id))
 
             report("storage", len(self.X))
+
+    def save_inner(self, path):
+        with open(path + "_dfnstate.pkl", "wb") as target:
+            pkl.dump((self.X, self.y), target)
+
+    def restore_inner(self, path):
+        with open(path + "_dfnstate.pkl", "rb") as target:
+            (self.X, self.y) = pkl.load(target)
