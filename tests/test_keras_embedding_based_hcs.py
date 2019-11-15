@@ -27,3 +27,5 @@ class KerasEmbeddingBasedHCTestCase(unittest.TestCase):
                     embedded = method.embed([concept.data["uid"]])
                     deembedded = method.deembed(embedded)
                     self.assertEqual(concept.data["uid"], deembedded[0])
+
+                    method.embed(["chia::EMPTY"])
