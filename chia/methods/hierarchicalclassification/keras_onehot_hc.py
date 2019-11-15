@@ -92,8 +92,24 @@ class OneHotEmbeddingBasedKerasHC(EmbeddingBasedKerasHC):
         return self.fc_layer(feature_batch)
 
     def embed(self, labels):
-        dimensions = [self.uid_to_dimension[uid] for uid in labels]
-        return tf.one_hot(dimensions, depth=self.last_observed_concept_count)
+        embeddings = []
+        for label in labels:
+            if label == "chia::EMPTY":
+                embeddings += [
+                    np.full(
+                        self.last_observed_concept_count,
+                        fill_value=1.0 / self.last_observed_concept_count,
+                    )
+                ]
+            else:
+                embeddings += [
+                    tf.one_hot(
+                        self.uid_to_dimension[label],
+                        depth=self.last_observed_concept_count,
+                    )
+                ]
+
+        return tf.stack(embeddings)
 
     def deembed_dist(self, embedded_labels):
         return [
