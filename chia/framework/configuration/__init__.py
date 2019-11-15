@@ -66,6 +66,9 @@ class ConfigurationContext:
                 "is_default": False,
                 "access_ctr": 0,
             }
+        elif _config_dict[full_key]["access_ctr"] == 0:
+            _config_dict[full_key]["value"] = value
+            _config_dict[full_key]["is_default"] = False
         else:
             raise ValueError(f"Attempted to set key {full_key} after first access.")
 
