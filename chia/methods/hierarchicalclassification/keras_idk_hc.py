@@ -19,6 +19,7 @@ class IDKEmbeddingBasedKerasHC(EmbeddingBasedKerasHC):
         with configuration.ConfigurationContext("IDKEmbeddingBasedKerasHC"):
             self._l2_regularization_coefficient = configuration.get("l2", 5e-5)
             self._mlnp = configuration.get("mlnp", True)
+            self._normalize_scores = configuration.get("normalize_scores", True)
 
         self.fc_layer = None
         self.uid_to_dimension = {}
@@ -84,6 +85,7 @@ class IDKEmbeddingBasedKerasHC(EmbeddingBasedKerasHC):
                 if uid not in self.observed_uids:
                     sorted_tuples[i] = (uid, 0.0)
 
+        if self._normalize_scores:
             total_scores = sum([p for uid, p in sorted_tuples])
             sorted_tuples = [(uid, p / total_scores) for uid, p in sorted_tuples]
 
