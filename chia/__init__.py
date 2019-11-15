@@ -4,4 +4,3 @@ print("This is CHIA: Concept Hierarchies for Incremental and Active Learning")
 import os
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-import tensorflow as tf
