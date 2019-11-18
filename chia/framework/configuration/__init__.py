@@ -25,16 +25,21 @@ class ConfigurationContext:
         global _current_context
         _current_context = self._parent_context
 
-    def get(self, key, default_value=None):
+    def get(self, key, default_value=None, no_default=False):
         assert "." not in key
 
         full_key = f"{self._full_description}.{key}"
         if full_key not in _config_dict.keys():
-            _config_dict[full_key] = {
-                "value": default_value,
-                "is_default": True,
-                "access_ctr": 0,
-            }
+            if no_default:
+                raise ValueError(
+                    f"Requested read of config key {full_key} for which there is no default given!"
+                )
+            else:
+                _config_dict[full_key] = {
+                    "value": default_value,
+                    "is_default": True,
+                    "access_ctr": 0,
+                }
         else:
             if (
                 _config_dict[full_key]["value"] == default_value
@@ -73,9 +78,9 @@ class ConfigurationContext:
             raise ValueError(f"Attempted to set key {full_key} after first access.")
 
 
-def get(key, default_value=None):
+def get(key, default_value=None, no_default=False):
     if _current_context is not None:
-        return _current_context.get(key, default_value)
+        return _current_context.get(key, default_value, no_default)
     else:
         raise ValueError("Cannot get configuration entry without Configuration Context")
 
