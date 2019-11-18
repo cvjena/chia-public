@@ -12,10 +12,12 @@ _namespace_uid = "LNDW"
 
 class LNDWDataset(datasets.Dataset):
     def __init__(self):
-        with configuration.ConfigurationContext(self.__class__.__name__):
+        with configuration.ConfigurationContext("LNDWDataset"):
             self.base_path = configuration.get(
                 "base_path", "/home/brust/datasets/lndw/dataset"
             )
+            self.side_length = configuration.get("side_length", 224)
+
         self.all_classes_even_unviable = []
         with open(os.path.join(self.base_path, "classes.csv")) as classes_file:
             reader = csv.reader(classes_file, delimiter=";")
@@ -111,7 +113,9 @@ class LNDWDataset(datasets.Dataset):
         the_image = Image.open(
             os.path.join(self.base_path, f"{int(class_['folder']):02d}", filename)
         )
-        the_image = np.asarray(the_image.resize((256, 256), Image.ANTIALIAS))
+        the_image = np.asarray(
+            the_image.resize((self.side_length, self.side_length), Image.ANTIALIAS)
+        )
 
         if individuals:
             label_string = f"{_namespace_uid}::{class_['class_name']}{int(class_['individual_id']):02d}"
