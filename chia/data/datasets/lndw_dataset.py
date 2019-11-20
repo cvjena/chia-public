@@ -17,6 +17,7 @@ class LNDWDataset(datasets.Dataset):
                 "base_path", "/home/brust/datasets/lndw/dataset"
             )
             self.side_length = configuration.get("side_length", 224)
+            self._viability_threshold = configuration.get("viability_threshold", 3.0)
 
         self.all_classes_even_unviable = []
         with open(os.path.join(self.base_path, "classes.csv")) as classes_file:
@@ -93,7 +94,7 @@ class LNDWDataset(datasets.Dataset):
             raise ValueError(f'Unknown relation "{key}"')
 
     def _viable(self, class_):
-        return float(class_["grade"]) <= 3.0
+        return float(class_["grade"]) <= self._viability_threshold
 
     def _filenames(self):
         return [
