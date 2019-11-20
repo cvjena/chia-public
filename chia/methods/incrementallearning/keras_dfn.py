@@ -25,14 +25,16 @@ class DFNKerasIncrementalModel(KerasIncrementalModel):
         self.X = []
         self.y = []
 
-    def observe_inner(self, samples, gt_resource_id):
+    def observe_inner(self, samples, gt_resource_id, progress_callback=None):
         assert len(samples) > 0
+
+        if progress_callback is not None:
+            progress_callback(0.0)
 
         total_bs = self.get_auto_batchsize(
             samples[0].get_resource("input_img_np").shape
         )
-        exposure_base = 3333 if not self.do_train_feature_extractor else 6666
-        old_bs = 0
+        exposure_base = 2500 if not self.do_train_feature_extractor else 10000
         new_bs = total_bs
         exposures = (
             len(samples)
@@ -43,8 +45,13 @@ class DFNKerasIncrementalModel(KerasIncrementalModel):
         inner_steps = int(max(1, exposures // total_bs))
 
         with InstrumentationContext(self.__class__.__name__):
+            rehearse_only = False
             report("inner_steps", inner_steps)
+            hc_loss_running = 0.0
+            hc_loss_factor = 0.0
             for inner_step in range(inner_steps):
+                if progress_callback is not None:
+                    progress_callback(inner_step / float(inner_steps))
                 update_local_step(inner_step)
 
                 batch_elements_X = []
@@ -52,37 +59,95 @@ class DFNKerasIncrementalModel(KerasIncrementalModel):
 
                 # Old images
                 if len(self.X) > 0:
+                    if rehearse_only:
+                        old_bs = total_bs
+                        new_bs = 0
+                    else:
+                        old_bs = total_bs // 2
+                        new_bs = total_bs - old_bs
                     old_indices = random.choices(range(len(self.X)), k=old_bs)
                     for old_index in old_indices:
                         batch_elements_X.append(self.X[old_index])
                         batch_elements_y.append(self.y[old_index])
 
-                    old_bs = total_bs // 2
-                    new_bs = total_bs - old_bs
-
                 # New images
-                new_indices = random.choices(range(len(samples)), k=new_bs)
-                for new_index in new_indices:
-                    batch_elements_X.append(
-                        samples[new_index].get_resource("input_img_np")
-                    )
-                    batch_elements_y.append(
-                        samples[new_index].get_resource(gt_resource_id)
-                    )
+                if not rehearse_only:
+                    new_indices = random.choices(range(len(samples)), k=new_bs)
+                    for new_index in new_indices:
+                        batch_elements_X.append(
+                            samples[new_index].get_resource("input_img_np")
+                        )
+                        batch_elements_y.append(
+                            samples[new_index].get_resource(gt_resource_id)
+                        )
 
                 hc_loss = self.perform_single_gradient_step(
                     batch_elements_X, batch_elements_y
                 )
 
-                if inner_step % 10 == 9:
-                    report("loss", hc_loss.numpy())
+                hc_loss_running += hc_loss.numpy()
+                hc_loss_factor += 1.0
 
-            # Training done here
-            for sample in samples:
-                self.X.append(sample.get_resource("input_img_np"))
-                self.y.append(sample.get_resource(gt_resource_id))
+                if inner_step % 10 == 9:
+                    report("loss_ravg", hc_loss_running / hc_loss_factor)
+                    hc_loss_running = 0.0
+                    hc_loss_factor = 0.0
+
+                if not rehearse_only and inner_step >= inner_steps // 2:
+                    print("Switching to rehearsal mode.")
+
+                    for sample in samples:
+                        self.X.append(sample.get_resource("input_img_np"))
+                        self.y.append(sample.get_resource(gt_resource_id))
+
+                    rehearse_only = True
 
             report("storage", len(self.X))
+
+        if progress_callback is not None:
+            progress_callback(1.0)
+
+    def rehearse(self, steps, progress_callback=None):
+        assert len(self.X) > 0
+
+        if progress_callback is not None:
+            progress_callback(0.0)
+
+        total_bs = self.get_auto_batchsize(self.X[0].shape)
+
+        with InstrumentationContext(self.__class__.__name__):
+            report("inner_steps", steps)
+            hc_loss_running = 0.0
+            hc_loss_factor = 0.0
+            for inner_step in range(steps):
+                if progress_callback is not None:
+                    progress_callback(inner_step / float(steps))
+                update_local_step(inner_step)
+
+                batch_elements_X = []
+                batch_elements_y = []
+
+                old_indices = random.choices(range(len(self.X)), k=total_bs)
+                for old_index in old_indices:
+                    batch_elements_X.append(self.X[old_index])
+                    batch_elements_y.append(self.y[old_index])
+
+                hc_loss = self.perform_single_gradient_step(
+                    batch_elements_X, batch_elements_y
+                )
+
+                hc_loss_running += hc_loss.numpy()
+                hc_loss_factor += 1.0
+
+                if inner_step % 10 == 9:
+                    report("loss_ravg", hc_loss_running / hc_loss_factor)
+                    hc_loss_running = 0.0
+                    hc_loss_factor = 0.0
+
+            report("storage", len(self.X))
+
+        if progress_callback is not None:
+            progress_callback(1.0)
 
     def save_inner(self, path):
         with open(path + "_dfnstate.pkl", "wb") as target:

@@ -39,22 +39,53 @@ class KerasIncrementalModel(ProbabilityOutputModel):
             )
             self.pixels_per_gb = 1100000
 
-            # Add regularizer: see https://jricheimer.github.io/keras/2019/02/06/keras-hack-1/
-            for layer in self.feature_extractor.layers:
-                if isinstance(layer, tf.keras.layers.Conv2D) or isinstance(
-                    layer, tf.keras.layers.Dense
-                ):
-                    layer.add_loss(
-                        lambda layer=layer: tf.keras.regularizers.l2(
-                            self.l2_regularization
-                        )(layer.kernel)
-                    )
-                if hasattr(layer, "bias_regularizer") and layer.use_bias:
-                    layer.add_loss(
-                        lambda layer=layer: tf.keras.regularizers.l2(
-                            self.l2_regularization
-                        )(layer.bias)
-                    )
+            self._add_regularizers()
+
+        elif self.architecture == "keras::InceptionResNetV2":
+            self.feature_extractor = tf.keras.applications.inception_resnet_v2.InceptionResNetV2(
+                include_top=False,
+                input_tensor=None,
+                input_shape=None,
+                pooling="avg",
+                weights="imagenet"
+                if self.use_pretrained_weights == "ILSVRC2012"
+                else None,
+            )
+            self.pixels_per_gb = 1100000
+
+            self._add_regularizers()
+
+        elif self.architecture == "keras::MobileNetV2":
+            with configuration.ConfigurationContext("KerasIncrementalModel"):
+                self.side_length = configuration.get("side_length", no_default=True)
+            self.feature_extractor = tf.keras.applications.mobilenet_v2.MobileNetV2(
+                include_top=False,
+                input_tensor=None,
+                input_shape=(self.side_length, self.side_length, 3),
+                pooling="avg",
+                weights="imagenet"
+                if self.use_pretrained_weights == "ILSVRC2012"
+                else None,
+            )
+            self.pixels_per_gb = 2000000
+
+            self._add_regularizers()
+
+        elif self.architecture == "keras::NASNetMobile":
+            with configuration.ConfigurationContext("KerasIncrementalModel"):
+                self.side_length = configuration.get("side_length", no_default=True)
+            self.feature_extractor = tf.keras.applications.nasnet.NASNetMobile(
+                include_top=False,
+                input_tensor=None,
+                input_shape=(self.side_length, self.side_length, 3),
+                pooling="avg",
+                weights="imagenet"
+                if self.use_pretrained_weights == "ILSVRC2012"
+                else None,
+            )
+            self.pixels_per_gb = 2000000  # TODO this is probably wrong!
+
+            self._add_regularizers()
 
         elif self.architecture == "keras::CIFAR-ResNet56":
             assert (
@@ -76,10 +107,33 @@ class KerasIncrementalModel(ProbabilityOutputModel):
             raise ValueError(f'Unknown architecture "{self.architecture}"')
 
         self.optimizer = tf.keras.optimizers.Adam(0.003)
+        # self.optimizer = tf.keras.optimizers.SGD(0.03)
         self.augmentation = keras_dataaugmentation.KerasDataAugmentation()
 
+        if not self.do_train_feature_extractor:
+            for layer in self.feature_extractor.layers:
+                layer.trainable = False
+
+    def _add_regularizers(self):
+        # Add regularizer: see https://jricheimer.github.io/keras/2019/02/06/keras-hack-1/
+        for layer in self.feature_extractor.layers:
+            if isinstance(layer, tf.keras.layers.Conv2D) or isinstance(
+                layer, tf.keras.layers.Dense
+            ):
+                layer.add_loss(
+                    lambda layer=layer: tf.keras.regularizers.l2(
+                        self.l2_regularization
+                    )(layer.kernel)
+                )
+            if hasattr(layer, "bias_regularizer") and layer.use_bias:
+                layer.add_loss(
+                    lambda layer=layer: tf.keras.regularizers.l2(
+                        self.l2_regularization
+                    )(layer.bias)
+                )
+
     @abstractmethod
-    def observe_inner(self, samples, gt_resource_id):
+    def observe_inner(self, samples, gt_resource_id, progress_callback=None):
         pass
 
     def save_inner(self, path):
@@ -88,9 +142,9 @@ class KerasIncrementalModel(ProbabilityOutputModel):
     def restore_inner(self, path):
         pass
 
-    def observe(self, samples, gt_resource_id):
+    def observe(self, samples, gt_resource_id, progress_callback=None):
         self.cls.observe(samples, gt_resource_id)
-        self.observe_inner(samples, gt_resource_id)
+        self.observe_inner(samples, gt_resource_id, progress_callback)
 
     # TODO replace bs with atuo bs in these
     def predict(self, samples, prediction_resource_id):
@@ -182,7 +236,9 @@ class KerasIncrementalModel(ProbabilityOutputModel):
 
         # Forward step
         with tf.GradientTape() as tape:
-            feature_batch = self.feature_extractor(batch_X, training=True)
+            feature_batch = self.feature_extractor(
+                batch_X, training=self.do_train_feature_extractor
+            )
             hc_loss = self.cls.loss(feature_batch, batch_y)
 
             if self.do_train_feature_extractor:

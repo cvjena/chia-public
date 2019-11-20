@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 
 class IncrementalModel(ABC):
     @abstractmethod
-    def observe(self, samples, gt_resource_id):
+    def observe(self, samples, gt_resource_id, progress_callback=None):
         return None
 
     @abstractmethod
