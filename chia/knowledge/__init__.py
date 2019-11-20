@@ -36,6 +36,9 @@ class KnowledgeBase:
     def observe_concepts(self, concept_uids):
         new_concept = False
         for concept_uid in concept_uids:
+            if concept_uid == "chia::UNCERTAIN":
+                continue
+
             if not self.is_known(concept_uid):
                 self.add_concept(concept_uid, dont_update_relations=True)
                 new_concept = True
