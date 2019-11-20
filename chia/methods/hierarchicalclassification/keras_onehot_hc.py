@@ -94,7 +94,7 @@ class OneHotEmbeddingBasedKerasHC(EmbeddingBasedKerasHC):
     def embed(self, labels):
         embeddings = []
         for label in labels:
-            if label == "chia::EMPTY":
+            if label == "chia::UNCERTAIN":
                 embeddings += [
                     np.full(
                         self.last_observed_concept_count,
