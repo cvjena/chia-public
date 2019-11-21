@@ -6,8 +6,11 @@ from PIL import Image
 import os
 
 
-def explore(pool):
-    app = QtWidgets.QApplication([])
+def explore(pool, in_app=False):
+    if not in_app:
+        app = QtWidgets.QApplication([])
+    else:
+        app = None
     dialog = QtWidgets.QWidget()
     dialog.setWindowTitle(f"Pool Explorer ({len(pool):d} samples)")
 
@@ -19,6 +22,7 @@ def explore(pool):
     sample_list = QtWidgets.QListWidget()
     resource_id_list = QtWidgets.QListWidget()
     history_list = QtWidgets.QListWidget()
+    delete_button = QtWidgets.QPushButton("delete")
     image_preview = QtWidgets.QLabel()
 
     # Update functions
@@ -141,9 +145,17 @@ def explore(pool):
         else:
             image_preview.setText("No image data.")
 
+    def delete_button_clicked():
+        nonlocal current_sample
+        if current_sample is not None:
+            pool.remove(current_sample)
+
+        update_sample_list()
+
     # Events
     sample_list.currentRowChanged.connect(sample_list_item_clicked)
     resource_id_list.currentRowChanged.connect(resource_id_list_item_clicked)
+    delete_button.clicked.connect(delete_button_clicked)
 
     dialog.resizeEvent = lambda newSize: (
         QtWidgets.QWidget.resizeEvent(dialog, newSize),
@@ -160,6 +172,7 @@ def explore(pool):
     middle_widget.setLayout(middle_layout)
     middle_layout.addWidget(resource_id_list)
     middle_layout.addWidget(history_list)
+    middle_layout.addWidget(delete_button)
     layout.addWidget(middle_widget)
 
     layout.addWidget(image_preview)
@@ -176,4 +189,5 @@ def explore(pool):
 
     # Go!
     dialog.show()
-    app.exec_()
+    if not in_app:
+        app.exec_()
