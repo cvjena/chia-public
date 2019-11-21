@@ -3,6 +3,7 @@ import math
 import numpy as np
 import tensorflow as tf
 import pickle as pkl
+import os
 
 from chia.framework.instrumentation import (
     InstrumentationContext,
@@ -13,6 +14,7 @@ from chia.framework import configuration
 from chia.methods.incrementallearning.keras_incrementallearning import (
     KerasIncrementalModel,
 )
+from chia.data import sample
 
 
 class DFNKerasIncrementalModel(KerasIncrementalModel):
@@ -22,8 +24,7 @@ class DFNKerasIncrementalModel(KerasIncrementalModel):
         with configuration.ConfigurationContext("DFNKerasIncrementalModel"):
             self.exposure_coef = configuration.get("exposure_coef", 1.0)
 
-        self.X = []
-        self.y = []
+        self.rehearsal_pool = []
 
     def observe_inner(self, samples, gt_resource_id, progress_callback=None):
         assert len(samples) > 0
@@ -58,17 +59,23 @@ class DFNKerasIncrementalModel(KerasIncrementalModel):
                 batch_elements_y = []
 
                 # Old images
-                if len(self.X) > 0:
+                if len(self.rehearsal_pool) > 0:
                     if rehearse_only:
                         old_bs = total_bs
                         new_bs = 0
                     else:
                         old_bs = total_bs // 2
                         new_bs = total_bs - old_bs
-                    old_indices = random.choices(range(len(self.X)), k=old_bs)
+                    old_indices = random.choices(
+                        range(len(self.rehearsal_pool)), k=old_bs
+                    )
                     for old_index in old_indices:
-                        batch_elements_X.append(self.X[old_index])
-                        batch_elements_y.append(self.y[old_index])
+                        batch_elements_X.append(
+                            self.rehearsal_pool[old_index].get_resource("input_img_np")
+                        )
+                        batch_elements_y.append(
+                            self.rehearsal_pool[old_index].get_resource("zDFN.label")
+                        )
 
                 # New images
                 if not rehearse_only:
@@ -97,23 +104,30 @@ class DFNKerasIncrementalModel(KerasIncrementalModel):
                     print("Switching to rehearsal mode.")
 
                     for sample in samples:
-                        self.X.append(sample.get_resource("input_img_np"))
-                        self.y.append(sample.get_resource(gt_resource_id))
+                        self.rehearsal_pool.append(
+                            sample.add_resource(
+                                self.__class__.__name__,
+                                "zDFN.label",
+                                sample.get_resource(gt_resource_id),
+                            )
+                        )
 
                     rehearse_only = True
 
-            report("storage", len(self.X))
+            report("storage", len(self.rehearsal_pool))
 
         if progress_callback is not None:
             progress_callback(1.0)
 
     def rehearse(self, steps, progress_callback=None):
-        assert len(self.X) > 0
+        assert len(self.rehearsal_pool) > 0
 
         if progress_callback is not None:
             progress_callback(0.0)
 
-        total_bs = self.get_auto_batchsize(self.X[0].shape)
+        total_bs = self.get_auto_batchsize(
+            self.rehearsal_pool[0].get_resource("input_img_np").shape
+        )
 
         with InstrumentationContext(self.__class__.__name__):
             report("inner_steps", steps)
@@ -127,10 +141,16 @@ class DFNKerasIncrementalModel(KerasIncrementalModel):
                 batch_elements_X = []
                 batch_elements_y = []
 
-                old_indices = random.choices(range(len(self.X)), k=total_bs)
+                old_indices = random.choices(
+                    range(len(self.rehearsal_pool)), k=total_bs
+                )
                 for old_index in old_indices:
-                    batch_elements_X.append(self.X[old_index])
-                    batch_elements_y.append(self.y[old_index])
+                    batch_elements_X.append(
+                        self.rehearsal_pool[old_index].get_resource("input_img_np")
+                    )
+                    batch_elements_y.append(
+                        self.rehearsal_pool[old_index].get_resource("zDFN.label")
+                    )
 
                 hc_loss = self.perform_single_gradient_step(
                     batch_elements_X, batch_elements_y
@@ -144,15 +164,26 @@ class DFNKerasIncrementalModel(KerasIncrementalModel):
                     hc_loss_running = 0.0
                     hc_loss_factor = 0.0
 
-            report("storage", len(self.X))
+            report("storage", len(self.rehearsal_pool))
 
         if progress_callback is not None:
             progress_callback(1.0)
 
     def save_inner(self, path):
-        with open(path + "_dfnstate.pkl", "wb") as target:
-            pkl.dump((self.X, self.y), target)
+        with open(path + "_dfnpool.pkl", "wb") as target:
+            pkl.dump(self.rehearsal_pool, target)
 
     def restore_inner(self, path):
-        with open(path + "_dfnstate.pkl", "rb") as target:
-            (self.X, self.y) = pkl.load(target)
+        if not os.path.exists(path + "_dfnpool.pkl"):
+            print("Falling back to dfnstate.pkl")
+            with open(path + "_dfnstate.pkl", "rb") as target:
+                (X, y) = pkl.load(target)
+                for i, (Xi, yi) in enumerate(zip(X, y)):
+                    self.rehearsal_pool.append(
+                        sample.Sample(self.__class__.__name__, uid=f"DFNImport_{i:05d}")
+                        .add_resource(self.__class__.__name__, "input_img_np", Xi)
+                        .add_resource(self.__class__.__name__, "zDFN.label", yi)
+                    )
+        else:
+            with open(path + "_dfnpool.pkl", "rb") as target:
+                self.rehearsal_pool = pkl.load(target)
