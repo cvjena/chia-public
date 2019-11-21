@@ -9,6 +9,7 @@ class Sample:
 
         if data is not None:
             self.data = data
+            self.data["_lazy_resources"] = {}
         else:
             if uid is not None:
                 self.data = {"uid": uid, "_lazy_resources": {}}
