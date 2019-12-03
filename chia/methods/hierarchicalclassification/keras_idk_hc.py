@@ -34,9 +34,12 @@ class IDKEmbeddingBasedKerasHC(EmbeddingBasedKerasHC):
     def embed(self, labels):
         embedding = np.zeros((len(labels), len(self.uid_to_dimension)))
         for i, label in enumerate(labels):
-            embedding[i, self.uid_to_dimension[label]] = 1.0
-            for ancestor in nx.ancestors(self.graph, label):
-                embedding[i, self.uid_to_dimension[ancestor]] = 1.0
+            if label == "chia::UNCERTAIN":
+                embedding[i] = 1.0
+            else:
+                embedding[i, self.uid_to_dimension[label]] = 1.0
+                for ancestor in nx.ancestors(self.graph, label):
+                    embedding[i, self.uid_to_dimension[ancestor]] = 1.0
 
         return embedding
 
