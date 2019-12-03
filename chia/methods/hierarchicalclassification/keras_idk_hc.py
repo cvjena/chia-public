@@ -100,12 +100,24 @@ class IDKEmbeddingBasedKerasHC(EmbeddingBasedKerasHC):
             current_concept_count = len(current_concepts)
             report("current_concepts", current_concept_count)
 
+        try:
+            old_weights = self.fc_layer.get_weights()
+            old_uidtodim = self.uid_to_dimension
+            old_graph = self.graph
+
+        except:
+            old_weights = []
+            old_uidtodim = []
+            old_graph = None
+
         self.fc_layer = tf.keras.layers.Dense(
             current_concept_count,
             activation="sigmoid",
             kernel_regularizer=tf.keras.regularizers.l2(
                 self._l2_regularization_coefficient
             ),
+            kernel_initializer="zero",
+            bias_initializer="zero",
         )
 
         # We need to reverse the graph for comfort because "is-a" has the concepts
@@ -123,6 +135,32 @@ class IDKEmbeddingBasedKerasHC(EmbeddingBasedKerasHC):
         self.observed_uids = {
             concept.data["uid"] for concept in self.kb.get_observed_concepts()
         }
+
+        if len(old_weights) == 2:
+            # Layer can be updated
+            new_weights = np.zeros([old_weights[0].shape[0], current_concept_count])
+            new_biases = np.zeros([current_concept_count])
+
+            reused_concepts = 0
+            for new_uid, dim in self.uid_to_dimension.items():
+                # Check if old weight is even available
+                if new_uid not in old_uidtodim.keys():
+                    continue
+
+                # Check if parents have changed
+                if set(self.graph.predecessors(new_uid)) != set(
+                    old_graph.predecessors(new_uid)
+                ):
+                    continue
+
+                new_weights[:, dim] = old_weights[0][:, old_uidtodim[new_uid]]
+                new_biases[dim] = old_weights[1][old_uidtodim[new_uid]]
+                reused_concepts += 1
+
+            report("reused_concepts", reused_concepts)
+
+            self.fc_layer.build([None, old_weights[0].shape[0]])
+            self.fc_layer.set_weights([new_weights, new_biases])
 
     def loss(self, feature_batch, ground_truth):
         loss_mask = np.zeros((len(ground_truth), len(self.uid_to_dimension)))
@@ -163,6 +201,7 @@ class IDKEmbeddingBasedKerasHC(EmbeddingBasedKerasHC):
     def trainable_variables(self):
         return self.fc_layer.trainable_variables
 
+    # FIXME save graph as well!!!
     def save(self, path):
         with open(path + "_hc.pkl", "wb") as target:
             pickle.dump(self.fc_layer.get_weights(), target)
