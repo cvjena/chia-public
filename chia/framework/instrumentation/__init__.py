@@ -27,6 +27,7 @@ class InstrumentationContext:
         self._local_step = None
 
         self.take_time = take_time
+        self.stored_result = None
 
     def __enter__(self):
         global _current_context
@@ -41,7 +42,7 @@ class InstrumentationContext:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         for observer in self._observers:
-            observer.on_context_exit()
+            observer.on_context_exit(self.stored_result)
 
         if self.take_time:
             self.timer.__exit__(None, None, None)
@@ -77,6 +78,9 @@ class InstrumentationContext:
                 metric, value, inner_steps=steps, inner_contexts=contexts
             )
 
+    def store_result(self, result):
+        self.stored_result = result
+
 
 def report(metric, value, local_step=None):
     if _current_context is not None:
@@ -93,6 +97,13 @@ def report_dict(mv_dict, local_step=None):
         raise ValueError("Cannot report without Instrumentation Context")
 
 
+def store_result(result):
+    if _current_context is not None:
+        _current_context.store_result(result)
+    else:
+        raise ValueError("Cannot store result without Instrumentation Context")
+
+
 def update_local_step(local_step):
     if _current_context is not None:
         _current_context.update_local_step(local_step)
@@ -107,7 +118,7 @@ class InstrumentationObserver(abc.ABC):
     def on_context_enter(self):
         pass
 
-    def on_context_exit(self):
+    def on_context_exit(self, stored_result):
         pass
 
     @abc.abstractmethod
