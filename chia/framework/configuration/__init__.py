@@ -162,62 +162,75 @@ def _update(config_key, value):
         key_component_context.__exit__(None, None, None)
 
 
-def main_context(func):
-    def wrapper():
-        with ConfigurationContext("global") as ctx:
-            try:
-                if os.path.exists("configuration.json"):
-                    _load_json("configuration.json")
-            except Exception as ex:
-                print(f"Exception during defaults loading: {ex}")
-                raise ex
+def main_context(config_sources=None):
+    def inner_main_context(func):
+        def wrapper():
+            with ConfigurationContext("global") as ctx:
+                if config_sources is None:
+                    total_config_sources = ["configuration.json"]
+                else:
+                    total_config_sources = config_sources
 
-            try:
-                import sys
-                import argparse
-
-                parser = argparse.ArgumentParser()
-                known_arguments, unknown_arguments = parser.parse_known_args()
-                for unknown_argument in unknown_arguments:
-                    # Look for config assignments
-                    if "=" in unknown_argument:
-                        # Parse assignment
-                        config_key, value = unknown_argument.split("=", 2)
-                        value = eval(value)
-                        _update(config_key, value)
-                    else:
-                        if os.path.exists(unknown_argument):
-                            _load_json(unknown_argument)
+                for config_source in total_config_sources:
+                    try:
+                        if os.path.exists(config_source):
+                            _load_json(config_source)
                         else:
-                            raise ValueError(
-                                f"Could not process argument {unknown_argument}"
+                            print(
+                                f"WARNING: Skipping configuration file {config_source} that could not be found!"
                             )
+                    except Exception as ex:
+                        print(f"Exception during defaults loading: {ex}")
+                        raise ex
 
-            except Exception as ex:
-                print(f"Exception during configuration parsing: {ex}.")
-                raise ex
+                try:
+                    import sys
+                    import argparse
 
-            print("Configuration dump (custom):")
-            print(dump_custom_json())
-            try:
-                func()
-            except Exception as ex:
-                the_ex = ex
-                print(f"Unhandled exception during execution: {ex}.")
-            else:
-                the_ex = None
+                    parser = argparse.ArgumentParser()
+                    known_arguments, unknown_arguments = parser.parse_known_args()
+                    for unknown_argument in unknown_arguments:
+                        # Look for config assignments
+                        if "=" in unknown_argument:
+                            # Parse assignment
+                            config_key, value = unknown_argument.split("=", 2)
+                            value = eval(value)
+                            _update(config_key, value)
+                        else:
+                            if os.path.exists(unknown_argument):
+                                _load_json(unknown_argument)
+                            else:
+                                raise ValueError(
+                                    f"Could not process argument {unknown_argument}"
+                                )
 
-            print("Configuration dump (custom):")
-            print(dump_custom_json())
-            print("Configuration dump (default):")
-            print(dump_default_json())
+                except Exception as ex:
+                    print(f"Exception during configuration parsing: {ex}.")
+                    raise ex
 
-            # Check access counter
-            for key, value_dict in _config_dict.items():
-                if value_dict["access_ctr"] == 0:
-                    print(f"WARNING: configuration entry {key} unused.")
+                print("Configuration dump (custom):")
+                print(dump_custom_json())
+                try:
+                    func()
+                except Exception as ex:
+                    the_ex = ex
+                    print(f"Unhandled exception during execution: {ex}.")
+                else:
+                    the_ex = None
 
-            if the_ex is not None:
-                raise the_ex
+                print("Configuration dump (custom):")
+                print(dump_custom_json())
+                print("Configuration dump (default):")
+                print(dump_default_json())
 
-    return wrapper
+                # Check access counter
+                for key, value_dict in _config_dict.items():
+                    if value_dict["access_ctr"] == 0:
+                        print(f"WARNING: configuration entry {key} unused.")
+
+                if the_ex is not None:
+                    raise the_ex
+
+        return wrapper
+
+    return inner_main_context
