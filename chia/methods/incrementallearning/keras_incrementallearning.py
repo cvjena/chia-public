@@ -114,6 +114,8 @@ class KerasIncrementalModel(ProbabilityOutputModel):
             for layer in self.feature_extractor.layers:
                 layer.trainable = False
 
+        self.reported_auto_bs = False
+
     def _add_regularizers(self):
         # Add regularizer: see https://jricheimer.github.io/keras/2019/02/06/keras-hack-1/
         for layer in self.feature_extractor.layers:
@@ -146,10 +148,11 @@ class KerasIncrementalModel(ProbabilityOutputModel):
         self.cls.observe(samples, gt_resource_id)
         self.observe_inner(samples, gt_resource_id, progress_callback)
 
-    # TODO replace bs with atuo bs in these
     def predict(self, samples, prediction_resource_id):
         return_samples = []
-        for small_batch in batches_from(samples, batch_size=16):
+        auto_bs = self.get_auto_batchsize(samples[0].get_resource("input_img_np").shape)
+
+        for small_batch in batches_from(samples, batch_size=auto_bs):
             image_batch = self.preprocess_image_batch(
                 self.build_image_batch(small_batch)
             )
@@ -165,7 +168,9 @@ class KerasIncrementalModel(ProbabilityOutputModel):
 
     def predict_probabilities(self, samples, prediction_dist_resource_id):
         return_samples = []
-        for small_batch in batches_from(samples, batch_size=16):
+        auto_bs = self.get_auto_batchsize(samples[0].get_resource("input_img_np").shape)
+
+        for small_batch in batches_from(samples, batch_size=auto_bs):
             image_batch = self.preprocess_image_batch(
                 self.build_image_batch(small_batch)
             )
@@ -217,8 +222,10 @@ class KerasIncrementalModel(ProbabilityOutputModel):
         auto_bs = min(self.batchsize_max, max(self.batchsize_min, auto_bs))
 
         # Report
-        with instrumentation.InstrumentationContext(self.__class__.__name__):
-            instrumentation.report("auto_bs", auto_bs)
+        if not self.reported_auto_bs:
+            with instrumentation.InstrumentationContext(self.__class__.__name__):
+                instrumentation.report("auto_bs", auto_bs)
+            self.reported_auto_bs = True
 
         return auto_bs
 
