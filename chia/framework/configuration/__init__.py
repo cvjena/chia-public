@@ -137,7 +137,12 @@ def dump_default_dict():
 
 
 def _load_json(path):
-    assert len(_config_dict.items()) == 0
+    if len(_config_dict.items()) != 0:
+        print(
+            f"WARNING: Loading multiple JSON files for configuration. Current file: {path}"
+        )
+    else:
+        print(f"Using config source: {path}")
 
     imported_dict = json.load(open(path))
     for key, value in imported_dict.items():
@@ -194,7 +199,18 @@ def main_context(config_sources=None):
                         if "=" in unknown_argument:
                             # Parse assignment
                             config_key, value = unknown_argument.split("=", 2)
-                            value = eval(value)
+                            try:
+                                value = eval(value)
+                            except (
+                                SyntaxError,
+                                NameError,
+                                TypeError,
+                                ZeroDivisionError,
+                            ):
+                                value = str(value)
+                                print(
+                                    f"WARNING: Interpreting {config_key}={value} as string!"
+                                )
                             _update(config_key, value)
                         else:
                             if os.path.exists(unknown_argument):
