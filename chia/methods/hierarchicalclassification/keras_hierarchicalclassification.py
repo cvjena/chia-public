@@ -65,7 +65,6 @@ class EmbeddingBasedKerasHC(KerasHierarchicalClassifier, ABC):
         return self.deembed_dist(embedded_predictions)
 
     def deembed(self, embedded_labels):
-        # TODO make nicer
         labels = []
         label_dists = self.deembed_dist(embedded_labels)
         for label_dist in label_dists:
