@@ -83,7 +83,7 @@ class KerasIncrementalModel(ProbabilityOutputModel):
                 if self.use_pretrained_weights == "ILSVRC2012"
                 else None,
             )
-            self.pixels_per_gb = 2000000  # TODO this is probably wrong!
+            self.pixels_per_gb = 2000000
 
             self._add_regularizers()
 
@@ -100,7 +100,7 @@ class KerasIncrementalModel(ProbabilityOutputModel):
             self.feature_extractor = keras_cifar_resnet.feature_extractor(
                 version=2, n=6, l2_norm=self.l2_regularization
             )
-            self.pixels_per_gb = 200000  # TODO this is likely not accurate,
+            self.pixels_per_gb = 200000
             # but with CIFAR this will be more than 256 anyway
 
         else:

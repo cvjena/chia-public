@@ -201,7 +201,6 @@ class IDKEmbeddingBasedKerasHC(EmbeddingBasedKerasHC):
     def trainable_variables(self):
         return self.fc_layer.trainable_variables
 
-    # FIXME save graph as well!!!
     def save(self, path):
         with open(path + "_hc.pkl", "wb") as target:
             pickle.dump(self.fc_layer.get_weights(), target)
@@ -225,6 +224,3 @@ class IDKEmbeddingBasedKerasHC(EmbeddingBasedKerasHC):
 
         with open(path + "_uidtodim.pkl", "rb") as target:
             (self.uid_to_dimension,) = pickle.load(target)
-
-        # TODO uncomment this when incremental learning starts working
-        # self.update_embedding()
