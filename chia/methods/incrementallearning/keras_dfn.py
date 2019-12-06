@@ -23,6 +23,8 @@ class DFNKerasIncrementalModel(KerasIncrementalModel):
 
         with configuration.ConfigurationContext("DFNKerasIncrementalModel"):
             self.exposure_coef = configuration.get("exposure_coef", 1.0)
+            self.always_rehearse = configuration.get("always_rehearse", False)
+            self.lambda_ = configuration.get("lambda", 0.5)
 
         self.rehearsal_pool = []
 
@@ -64,7 +66,9 @@ class DFNKerasIncrementalModel(KerasIncrementalModel):
                         old_bs = total_bs
                         new_bs = 0
                     else:
-                        old_bs = total_bs // 2
+                        old_bs = max(
+                            0, min(total_bs, int(math.ceil(total_bs * self.lambda_)))
+                        )
                         new_bs = total_bs - old_bs
                     old_indices = random.choices(
                         range(len(self.rehearsal_pool)), k=old_bs
@@ -100,24 +104,34 @@ class DFNKerasIncrementalModel(KerasIncrementalModel):
                     hc_loss_running = 0.0
                     hc_loss_factor = 0.0
 
-                if not rehearse_only and inner_step >= inner_steps // 2:
+                if (
+                    not rehearse_only
+                    and inner_step >= inner_steps // 2
+                    and self.always_rehearse
+                ):
                     print("Switching to rehearsal mode.")
-
-                    for sample in samples:
-                        self.rehearsal_pool.append(
-                            sample.add_resource(
-                                self.__class__.__name__,
-                                "zDFN.label",
-                                sample.get_resource(gt_resource_id),
-                            )
-                        )
+                    self.add_to_rehearsal_pool(gt_resource_id, samples)
 
                     rehearse_only = True
+
+            if not self.always_rehearse:
+                print("Rehearsal disabled.")
+                self.add_to_rehearsal_pool(gt_resource_id, samples)
 
             report("storage", len(self.rehearsal_pool))
 
         if progress_callback is not None:
             progress_callback(1.0)
+
+    def add_to_rehearsal_pool(self, gt_resource_id, samples):
+        for sample in samples:
+            self.rehearsal_pool.append(
+                sample.add_resource(
+                    self.__class__.__name__,
+                    "zDFN.label",
+                    sample.get_resource(gt_resource_id),
+                )
+            )
 
     def rehearse(self, steps, progress_callback=None):
         assert len(self.rehearsal_pool) > 0
