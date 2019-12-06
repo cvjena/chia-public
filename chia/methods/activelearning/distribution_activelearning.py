@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Sequence, Tuple, Hashable
-
+import random
 from chia.methods.activelearning import ActiveLearningMethod
 
 
@@ -39,7 +39,10 @@ class OutputDistributionActiveLearningMethod(ActiveLearningMethod, ABC):
 
 class OneVsTwoActiveLearningMethod(OutputDistributionActiveLearningMethod):
     def distribution_score(self, distribution):
-        assert len(distribution) >= 2
-        sorted_probabilities = sorted([p for c, p in distribution], reverse=True)
-        onevstwo = 1 - (sorted_probabilities[0] - sorted_probabilities[1])
-        return onevstwo
+        if len(distribution) >= 2:
+            sorted_probabilities = sorted([p for c, p in distribution], reverse=True)
+            onevstwo = 1 - (sorted_probabilities[0] - sorted_probabilities[1])
+            return onevstwo
+        else:
+            # Fall back if there are less than two classes
+            return random.uniform(0.0, 1.0)
