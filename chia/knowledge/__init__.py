@@ -71,6 +71,7 @@ class KnowledgeBase:
             "data": data if data is not None else set(),
             "sources": sources if sources is not None else [],
             "graph": networkx.Graph() if is_symmetric else networkx.DiGraph(),
+            "ugraph": networkx.Graph(),
             "is_reflexive": is_reflexive,
             "is_symmetric": is_symmetric,
             "is_transitive": is_transitive,
@@ -152,6 +153,9 @@ class KnowledgeBase:
             if relation["is_transitive"]:
                 reduction = networkx.algorithms.dag.transitive_reduction(graph)
                 relation["graph"] = reduction
+
+            ugraph = relation["ugraph"]
+            ugraph.update(nodes=self.all_concepts.keys(), edges=relation["data"])
 
             self.relation_stamp += 1
 
