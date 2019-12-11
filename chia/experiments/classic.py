@@ -28,6 +28,7 @@ def main():
     experiment_scale = configuration.get("experiment_scale", no_default=True)
     dataset_name = configuration.get("dataset", no_default=True)
     experiment_name = configuration.get("experiment_name", no_default=True)
+    report_interval = configuration.get("report_interval", no_default=True)
 
     # Eval config
     use_sacred_observer = configuration.get("use_sacred_observer", no_default=True)
@@ -63,7 +64,6 @@ def main():
         # Runs...
         for run_id in range(run_count):
             instrumentation.update_local_step(run_id)
-            results_across_train_pools = []
 
             # Dataset specific run init
             if dataset_name == "CORe50":
@@ -100,71 +100,77 @@ def main():
             # Evaluator
             evaluator = evaluation.all_evaluators(kb)
 
-            # Go over batches...
-            with instrumentation.InstrumentationContext("train_pool"):
-                train_pool_count = dataset.train_pool_count()
-                instrumentation.report("train_pool_count", train_pool_count)
+            train_pool_count = dataset.train_pool_count()
 
-                for train_pool_id in range(train_pool_count):
-                    instrumentation.update_local_step(train_pool_id)
+            # Collect training data
+            train_pool = []
+            for train_pool_id in range(train_pool_count):
+                train_pool += pool.FixedPool(
+                    dataset.train_pool(train_pool_id, label_gt_resource_id)
+                )
 
-                    with instrumentation.InstrumentationContext(
-                        "training", take_time=True
-                    ):
-                        # Collect training data
-                        train_pool = pool.FixedPool(
-                            dataset.train_pool(train_pool_id, label_gt_resource_id)
-                        )
+            train_pool_size = len(train_pool)
+            instrumentation.report("train_pool_size", train_pool_size)
 
-                        train_pool_size = len(train_pool)
+            # Run "interaction"
+            labeled_pool = im.query_annotations_for(
+                train_pool, label_gt_resource_id, label_ann_resource_id
+            )
 
-                        instrumentation.report("train_pool_size", train_pool_size)
+            next_progress = 0.0
 
-                        # Run "interaction"
-                        labeled_pool = im.query_annotations_for(
-                            train_pool, label_gt_resource_id, label_ann_resource_id
-                        )
+            def evaluate(progress=None):
+                nonlocal next_progress
+                if progress is not None:
+                    if progress < next_progress:
+                        return
+                    else:
+                        next_progress += report_interval
 
-                        # Learn the thing
-                        kb.observe_concepts(
-                            [
-                                sample.get_resource(label_ann_resource_id)
-                                for sample in labeled_pool
-                            ]
-                        )
-                        ilm.observe(labeled_pool, label_ann_resource_id)
+                # Quick reclass accuracy
+                with instrumentation.InstrumentationContext("reclassification"):
+                    evaluator.update(
+                        ilm.predict(labeled_pool, label_pred_resource_id),
+                        label_ann_resource_id,
+                        label_pred_resource_id,
+                    )
+                    instrumentation.report_dict(evaluator.result())
+                    evaluator.reset()
 
-                    # Quick reclass accuracy
-                    with instrumentation.InstrumentationContext("reclassification"):
+                # Validation
+                with instrumentation.InstrumentationContext(
+                    "validation", take_time=True
+                ):
+                    results_across_test_pools = []
+                    for test_pool_id in range(len(test_pools)):
+                        instrumentation.update_local_step(test_pool_id)
                         evaluator.update(
-                            ilm.predict(labeled_pool, label_pred_resource_id),
-                            label_ann_resource_id,
+                            ilm.predict(
+                                test_pools[test_pool_id], label_pred_resource_id
+                            ),
+                            label_gt_resource_id,
                             label_pred_resource_id,
                         )
                         instrumentation.report_dict(evaluator.result())
+                        results_across_test_pools += [evaluator.result()]
                         evaluator.reset()
 
-                    # Validation
-                    with instrumentation.InstrumentationContext(
-                        "validation", take_time=True
-                    ):
-                        results_across_test_pools = []
-                        for test_pool_id in range(len(test_pools)):
-                            instrumentation.update_local_step(test_pool_id)
-                            evaluator.update(
-                                ilm.predict(
-                                    test_pools[test_pool_id], label_pred_resource_id
-                                ),
-                                label_gt_resource_id,
-                                label_pred_resource_id,
-                            )
-                            instrumentation.report_dict(evaluator.result())
-                            results_across_test_pools += [evaluator.result()]
-                            evaluator.reset()
+                return results_across_test_pools
 
-                    results_across_train_pools += [results_across_test_pools]
+            with instrumentation.InstrumentationContext("training", take_time=True):
 
-            results_across_runs += results_across_train_pools
+                # Learn the thing
+                kb.observe_concepts(
+                    [
+                        sample.get_resource(label_ann_resource_id)
+                        for sample in labeled_pool
+                    ]
+                )
+                ilm.observe(
+                    labeled_pool, label_ann_resource_id, progress_callback=evaluate
+                )
+
+            results_across_runs += [evaluate()]
 
         instrumentation.store_result(results_across_runs)
 
