@@ -64,6 +64,7 @@ def main():
 
         # Runs...
         for run_id in range(run_count):
+            results_during_run = []
             instrumentation.update_local_step(run_id)
 
             # Dataset specific run init
@@ -122,6 +123,7 @@ def main():
 
             def evaluate(progress=None):
                 nonlocal next_progress
+                nonlocal results_during_run
                 if progress is not None:
                     if progress < next_progress:
                         return
@@ -156,6 +158,8 @@ def main():
                         results_across_test_pools += [evaluator.result()]
                         evaluator.reset()
 
+                if progress is not None:
+                    results_during_run += [results_across_test_pools]
                 return results_across_test_pools
 
             with instrumentation.InstrumentationContext("training", take_time=True):
@@ -171,7 +175,7 @@ def main():
                     labeled_pool, label_ann_resource_id, progress_callback=evaluate
                 )
 
-            results_across_runs += [evaluate()]
+            results_across_runs += [results_during_run + evaluate()]
 
         instrumentation.store_result(results_across_runs)
 
