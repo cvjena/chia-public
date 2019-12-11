@@ -142,3 +142,7 @@ class PrintObserver(InstrumentationObserver):
             metric, contexts, steps
         )
         print(f"{description_string:49s} @ {steps_string:10s}: {value}")
+
+    def on_context_exit(self, stored_result):
+        if stored_result is not None:
+            print(f"{self._prefix}: RESULT = {stored_result}")
