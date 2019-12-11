@@ -31,9 +31,6 @@ class DFNKerasIncrementalModel(KerasIncrementalModel):
     def observe_inner(self, samples, gt_resource_id, progress_callback=None):
         assert len(samples) > 0
 
-        if progress_callback is not None:
-            progress_callback(0.0)
-
         total_bs = self.get_auto_batchsize(
             samples[0].get_resource("input_img_np").shape
         )
@@ -48,6 +45,9 @@ class DFNKerasIncrementalModel(KerasIncrementalModel):
         inner_steps = int(max(1, exposures // total_bs))
 
         with InstrumentationContext(self.__class__.__name__):
+            if progress_callback is not None:
+                progress_callback(0.0)
+
             rehearse_only = False
             report("inner_steps", inner_steps)
             hc_loss_running = 0.0
@@ -120,8 +120,8 @@ class DFNKerasIncrementalModel(KerasIncrementalModel):
 
             report("storage", len(self.rehearsal_pool))
 
-        if progress_callback is not None:
-            progress_callback(1.0)
+            if progress_callback is not None:
+                progress_callback(1.0)
 
     def add_to_rehearsal_pool(self, gt_resource_id, samples):
         for sample in samples:
