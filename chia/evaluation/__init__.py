@@ -58,7 +58,13 @@ class AccuracyEvaluator(Evaluator):
         return {"accuracy": float(self.correct_count) / float(self.sample_count)}
 
 
-_method_mapping = {"Accuracy": AccuracyEvaluator}
+from . import hierarchical
+
+
+_method_mapping = {
+    "Accuracy": AccuracyEvaluator,
+    "Hierarchical": hierarchical.HierarchicalEvaluator,
+}
 
 
 def methods():
