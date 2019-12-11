@@ -56,3 +56,10 @@ class AccuracyEvaluator(Evaluator):
 
     def result(self):
         return {"accuracy": float(self.correct_count) / float(self.sample_count)}
+
+
+def all_evaluators(kb):
+    evaluator = MultiEvaluator()
+    evaluator.add(AccuracyEvaluator())
+
+    return evaluator
