@@ -31,6 +31,7 @@ def main():
     label_budget = configuration.get("label_budget", no_default=True)
     dataset_name = configuration.get("dataset", no_default=True)
     experiment_name = configuration.get("experiment_name", no_default=True)
+    evaluators = configuration.get("evaluators", no_default=True)
 
     ll_cycle_mode = configuration.get("ll_cycle_mode", no_default=True)
     if ll_cycle_mode:
@@ -108,7 +109,7 @@ def main():
             alm = activelearning.method(al_method, ilm, kb)
 
             # Evaluator
-            evaluator = evaluation.all_evaluators(kb)
+            evaluator = evaluation.method(evaluators, kb)
 
             # Go over batches...
             with instrumentation.InstrumentationContext("train_pool"):

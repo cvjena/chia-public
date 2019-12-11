@@ -16,7 +16,7 @@ class Evaluator(ABC):
 
 
 class MultiEvaluator(Evaluator):
-    def __init__(self):
+    def __init__(self, kb):
         self._children = []
 
     def add(self, evaluator):
@@ -38,7 +38,7 @@ class MultiEvaluator(Evaluator):
 
 
 class AccuracyEvaluator(Evaluator):
-    def __init__(self):
+    def __init__(self, kb):
         self.correct_count = 0
         self.sample_count = 0
 
@@ -58,8 +58,15 @@ class AccuracyEvaluator(Evaluator):
         return {"accuracy": float(self.correct_count) / float(self.sample_count)}
 
 
-def all_evaluators(kb):
-    evaluator = MultiEvaluator()
-    evaluator.add(AccuracyEvaluator())
+_method_mapping = {"Accuracy": AccuracyEvaluator}
 
+
+def methods():
+    return _method_mapping.keys()
+
+
+def method(keys, kb):
+    evaluator = MultiEvaluator(kb)
+    for key in keys:
+        evaluator.add(_method_mapping[key](kb))
     return evaluator

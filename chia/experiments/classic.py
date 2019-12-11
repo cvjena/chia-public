@@ -29,6 +29,7 @@ def main():
     dataset_name = configuration.get("dataset", no_default=True)
     experiment_name = configuration.get("experiment_name", no_default=True)
     report_interval = configuration.get("report_interval", no_default=True)
+    evaluators = configuration.get("evaluators", no_default=True)
 
     # Eval config
     use_sacred_observer = configuration.get("use_sacred_observer", no_default=True)
@@ -98,7 +99,7 @@ def main():
             ilm = incrementallearning.method(ilm_method, cls)
 
             # Evaluator
-            evaluator = evaluation.all_evaluators(kb)
+            evaluator = evaluation.method(evaluators, kb)
 
             train_pool_count = dataset.train_pool_count()
 
