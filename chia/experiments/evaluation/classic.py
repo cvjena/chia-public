@@ -3,9 +3,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def main(filenames):
+def main(lines):
     result_storage = {}
-    for filename in filenames:
+    for filename, _, _ in lines:
         try:
             with open(filename) as target:
                 data = json.load(target)
@@ -48,20 +48,16 @@ def main(filenames):
             continue
 
     plt.figure()
-    for filename in result_storage.keys():
+    for filename, metric_filter, display_name in lines:
         result_storage_file = result_storage[filename]
-        for metric in result_storage_file.keys():
-            metric_storage = result_storage_file[metric].transpose()
+        metric_storage = result_storage_file[metric_filter].transpose()
 
-            y = np.mean(metric_storage, axis=1)
-            ystd = np.std(metric_storage, axis=1)
-            plt.plot(range(metric_storage.shape[0]), y, label=f"{filename}.{metric}")
-            plt.fill_between(
-                range(metric_storage.shape[0]),
-                y - 0.5 * ystd,
-                y + 0.5 * ystd,
-                alpha=0.5,
-            )
+        y = np.mean(metric_storage, axis=1)
+        ystd = np.std(metric_storage, axis=1)
+        plt.plot(range(metric_storage.shape[0]), y, label=display_name)
+        plt.fill_between(
+            range(metric_storage.shape[0]), y - 0.5 * ystd, y + 0.5 * ystd, alpha=0.5
+        )
 
     plt.legend()
     plt.tight_layout()
@@ -71,4 +67,16 @@ def main(filenames):
 if __name__ == "__main__":
     import sys
 
-    main(sys.argv[1:])
+    mode_arg = sys.argv[1]
+    if mode_arg == "intermediate":
+        relevant_args = sys.argv[2:]
+
+        assert len(relevant_args) % 3 == 0
+        lines = []
+        while len(relevant_args) > 0:
+            lines += [(relevant_args[0], relevant_args[1], relevant_args[2])]
+            relevant_args = relevant_args[3:]
+        main(lines)
+
+    else:
+        print(f"Unknown mode: {mode_arg}")
