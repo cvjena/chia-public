@@ -180,7 +180,7 @@ def main():
                     progress_callback=evaluate if report_interval > 0 else None,
                 )
 
-            results_across_runs += [results_during_run + evaluate()]
+            results_across_runs += [results_during_run + [evaluate()]]
 
         instrumentation.store_result(results_across_runs)
 
