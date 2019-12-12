@@ -1,5 +1,7 @@
 import abc
 import time
+import random
+import json
 
 _current_context = None
 
@@ -25,6 +27,7 @@ class InstrumentationContext:
         self._description = description
         self._observers = observers if observers is not None else []
         self._local_step = None
+        self.run_id = f"{random.getrandbits(32):08x}"
 
         self.take_time = take_time
         self.stored_result = None
@@ -42,7 +45,7 @@ class InstrumentationContext:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         for observer in self._observers:
-            observer.on_context_exit(self.stored_result)
+            observer.on_context_exit(self.stored_result, self.run_id)
 
         if self.take_time:
             self.timer.__exit__(None, None, None)
@@ -81,6 +84,10 @@ class InstrumentationContext:
     def store_result(self, result):
         self.stored_result = result
 
+    def update_run_id(self, run_id):
+        print(f"New run id: {run_id}")
+        self.run_id = run_id
+
 
 def report(metric, value, local_step=None):
     if _current_context is not None:
@@ -111,6 +118,13 @@ def update_local_step(local_step):
         raise ValueError("Cannot update local step without Instrumentation Context")
 
 
+def update_run_id(run_id):
+    if _current_context is not None:
+        _current_context.update_run_id(run_id)
+    else:
+        raise ValueError("Cannot update run ID without Instrumentation Context")
+
+
 class InstrumentationObserver(abc.ABC):
     def __init__(self, prefix=""):
         self._prefix = prefix
@@ -118,7 +132,7 @@ class InstrumentationObserver(abc.ABC):
     def on_context_enter(self):
         pass
 
-    def on_context_exit(self, stored_result):
+    def on_context_exit(self, stored_result, run_id):
         pass
 
     @abc.abstractmethod
@@ -132,7 +146,7 @@ class InstrumentationObserver(abc.ABC):
             lambda context: str(context) if context is not None else "-", contexts
         )
         contexts_string = ".".join(context_strings)
-        description_string = f"{self._prefix:s}{contexts_string:s}/{metric:s}"
+        description_string = f"{self._prefix:s}.{contexts_string:s}/{metric:s}"
         return description_string, steps_string
 
 
@@ -143,6 +157,25 @@ class PrintObserver(InstrumentationObserver):
         )
         print(f"{description_string:49s} @ {steps_string:10s}: {value}")
 
-    def on_context_exit(self, stored_result):
+    def on_context_exit(self, stored_result, run_id):
         if stored_result is not None:
-            print(f"{self._prefix}: RESULT = {stored_result}")
+            print(f"{self._prefix}#{run_id}: RESULT = {stored_result}")
+
+
+class JSONResultObserver(InstrumentationObserver):
+    def report(self, metric, value, steps, contexts):
+        pass
+
+    def on_context_exit(self, stored_result, run_id):
+        if stored_result is not None:
+            try:
+                output = json.dumps(stored_result, indent=2)
+            except:
+                output = str(stored_result)
+
+            try:
+                fname = f"storedresult-{self._prefix}-{run_id}.json"
+                with open(fname, "w") as target:
+                    target.write(output)
+            except Exception as ex:
+                print("WARNING: Could not store result: {str(ex}")

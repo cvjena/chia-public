@@ -64,10 +64,12 @@ class SacredObserver(instrumentation.InstrumentationObserver):
         self.sacred_thread.start()
         self.run_object_available.wait()
 
+        instrumentation.update_run_id(self.sacred_run._id)
+
         # print("Custom configuration:")
         # print(configuration.dump_custom_json())
 
-    def on_context_exit(self, stored_result):
+    def on_context_exit(self, stored_result, run_id):
         super().on_context_exit(stored_result)
         self.stored_result = stored_result
         self.done.set()

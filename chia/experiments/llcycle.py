@@ -50,7 +50,10 @@ def main():
     dataset = datasets.dataset(dataset_name)
 
     # Get instrumentation going
-    instrumentation_observers = [instrumentation.PrintObserver()]
+    instrumentation_observers = [
+        instrumentation.PrintObserver(experiment_name),
+        instrumentation.JSONResultObserver(experiment_name),
+    ]
     if use_sacred_observer:
         instrumentation_observers += [
             sacred_instrumentation.SacredObserver(experiment_name)
