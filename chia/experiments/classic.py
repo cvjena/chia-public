@@ -172,7 +172,9 @@ def main():
                     ]
                 )
                 ilm.observe(
-                    labeled_pool, label_ann_resource_id, progress_callback=evaluate
+                    labeled_pool,
+                    label_ann_resource_id,
+                    progress_callback=evaluate if report_interval > 0 else None,
                 )
 
             results_across_runs += [results_during_run + evaluate()]
