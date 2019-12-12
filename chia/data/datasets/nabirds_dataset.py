@@ -138,11 +138,12 @@ class NABirdsDataset(datasets.Dataset):
         )
 
     def _load_from_location(self, sample_):
-        return np.asarray(
-            Image.open(sample_.get_resource("image_location")).resize(
-                self.target_size, Image.ANTIALIAS
-            )
+        im = Image.open(sample_.get_resource("image_location")).resize(
+            self.target_size, Image.ANTIALIAS
         )
+        if im.mode != "RGB":
+            im = im.convert("RGB")
+        return np.asarray(im)
 
     def get_hypernymy_relation_source(self):
         return knowledge.StaticRelationSource(self.tuples)
