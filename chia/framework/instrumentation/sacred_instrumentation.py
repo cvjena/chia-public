@@ -70,7 +70,7 @@ class SacredObserver(instrumentation.InstrumentationObserver):
         # print(configuration.dump_custom_json())
 
     def on_context_exit(self, stored_result, run_id):
-        super().on_context_exit(stored_result)
+        super().on_context_exit(stored_result, run_id)
         self.stored_result = stored_result
         self.done.set()
         self.sacred_thread.join()
