@@ -119,13 +119,20 @@ class KerasIncrementalModel(ProbabilityOutputModel):
     def _add_regularizers(self):
         # Add regularizer: see https://jricheimer.github.io/keras/2019/02/06/keras-hack-1/
         for layer in self.feature_extractor.layers:
-            if isinstance(layer, tf.keras.layers.Conv2D) or isinstance(
-                layer, tf.keras.layers.Dense
-            ):
+            if (
+                isinstance(layer, tf.keras.layers.Conv2D)
+                and not isinstance(layer, tf.keras.layers.DepthwiseConv2D)
+            ) or isinstance(layer, tf.keras.layers.Dense):
                 layer.add_loss(
                     lambda layer=layer: tf.keras.regularizers.l2(
                         self.l2_regularization
                     )(layer.kernel)
+                )
+            elif isinstance(layer, tf.keras.layers.DepthwiseConv2D):
+                layer.add_loss(
+                    lambda layer=layer: tf.keras.regularizers.l2(
+                        self.l2_regularization
+                    )(layer.depthwise_kernel)
                 )
             if hasattr(layer, "bias_regularizer") and layer.use_bias:
                 layer.add_loss(
