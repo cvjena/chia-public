@@ -13,7 +13,7 @@ class NABirdsDataset(datasets.Dataset):
     def __init__(self):
         with configuration.ConfigurationContext(self.__class__.__name__):
             self.base_path = configuration.get("base_path", "/home/datasets/nabirds")
-            self.target_size = configuration.get("target_size", (384, 384))
+            self.side_length = configuration.get("side_length", 224)
 
         with open(os.path.join(self.base_path, "classes.txt")) as cls:
             lines = [x.strip() for x in cls]
@@ -139,7 +139,7 @@ class NABirdsDataset(datasets.Dataset):
 
     def _load_from_location(self, sample_):
         im = Image.open(sample_.get_resource("image_location")).resize(
-            self.target_size, Image.ANTIALIAS
+            (self.side_length, self.side_length), Image.ANTIALIAS
         )
         if im.mode != "RGB":
             im = im.convert("RGB")
