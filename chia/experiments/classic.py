@@ -29,6 +29,7 @@ def main():
     dataset_name = configuration.get("dataset", no_default=True)
     experiment_name = configuration.get("experiment_name", no_default=True)
     report_interval = configuration.get("report_interval", no_default=True)
+    validation_scale = configuration.get("validation_scale", no_default=True)
     evaluators = configuration.get("evaluators", no_default=True)
 
     # Eval config
@@ -80,7 +81,15 @@ def main():
                 for i in range(dataset.test_pool_count()):
                     instrumentation.update_local_step(i)
                     test_pool = dataset.test_pool(i, label_gt_resource_id)
-
+                    if validation_scale < 1.0:
+                        test_pool = test_pool[
+                            : min(
+                                max(
+                                    1, int(math.ceil(len(test_pool) * validation_scale))
+                                ),
+                                len(test_pool),
+                            )
+                        ]
                     instrumentation.report("size", len(test_pool))
                     test_pools += [test_pool]
 
@@ -135,8 +144,22 @@ def main():
 
                 # Quick reclass accuracy
                 with instrumentation.InstrumentationContext("reclassification"):
+                    if validation_scale < 1.0:
+                        reclass_pool = labeled_pool[
+                            : min(
+                                max(
+                                    1,
+                                    int(
+                                        math.ceil(len(labeled_pool) * validation_scale)
+                                    ),
+                                ),
+                                len(labeled_pool),
+                            )
+                        ]
+                    else:
+                        reclass_pool = labeled_pool
                     evaluator.update(
-                        ilm.predict(labeled_pool, label_pred_resource_id),
+                        ilm.predict(reclass_pool, label_pred_resource_id),
                         label_ann_resource_id,
                         label_pred_resource_id,
                     )
