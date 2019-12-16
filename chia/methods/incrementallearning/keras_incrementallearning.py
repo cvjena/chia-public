@@ -26,6 +26,7 @@ class KerasIncrementalModel(ProbabilityOutputModel):
 
             self.architecture = configuration.get("architecture", "keras::ResNet50V2")
             self.l2_regularization = configuration.get("l2_regularization", 5e-5)
+            self.adam_lr = configuration.get("adam_lr", 0.003)
 
         if self.architecture == "keras::ResNet50V2":
             self.feature_extractor = tf.keras.applications.resnet_v2.ResNet50V2(
@@ -106,7 +107,7 @@ class KerasIncrementalModel(ProbabilityOutputModel):
         else:
             raise ValueError(f'Unknown architecture "{self.architecture}"')
 
-        self.optimizer = tf.keras.optimizers.Adam(0.003)
+        self.optimizer = tf.keras.optimizers.Adam(self.adam_lr)
         # self.optimizer = tf.keras.optimizers.SGD(0.03)
         self.augmentation = keras_dataaugmentation.KerasDataAugmentation()
 
