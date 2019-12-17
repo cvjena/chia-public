@@ -83,7 +83,8 @@ def get_system(key):
     if full_key not in _config_dict.keys():
         raise ValueError(f"Unknown system config key {key}.")
     else:
-        return _config_dict[full_key]
+        _config_dict[full_key]["access_ctr"] += 1
+        return _config_dict[full_key]["value"]
 
 
 def set_system(key, value):
@@ -91,7 +92,11 @@ def set_system(key, value):
     if full_key in _config_dict.keys():
         raise ValueError(f"System config key {key} already exists.")
     else:
-        _config_dict[full_key] = value
+        _config_dict[full_key] = {
+                "value": value,
+                "is_default": False,
+                "access_ctr": 0,
+            }
 
 
 def get(key, default_value=None, no_default=False):
