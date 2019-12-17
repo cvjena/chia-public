@@ -144,6 +144,7 @@ def main():
 
                 # Quick reclass accuracy
                 with instrumentation.InstrumentationContext("reclassification"):
+                    instrumentation.update_local_step(0)
                     if validation_scale < 1.0:
                         reclass_pool = labeled_pool[
                             : min(
