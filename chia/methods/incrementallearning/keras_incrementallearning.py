@@ -23,6 +23,7 @@ class KerasIncrementalModel(ProbabilityOutputModel):
             )
             self.batchsize_max = configuration.get("batchsize_max", 256)
             self.batchsize_min = configuration.get("batchsize_min", 1)
+            self.autobs_vram = configuration.get("autobs_vram", configuration.get_system("gpu0_vram"))
 
             self.architecture = configuration.get("architecture", "keras::ResNet50V2")
             self.l2_regularization = configuration.get("l2_regularization", 5e-5)
@@ -218,12 +219,12 @@ class KerasIncrementalModel(ProbabilityOutputModel):
             image_batch = (image_batch / 127.5) - 1.0
             return image_batch
 
-    def get_auto_batchsize(self, shape, vram_gb=11.0):
+    def get_auto_batchsize(self, shape):
         # Calculate input buffer size
         input_buffer_bytes = 4.0 * functools.reduce(lambda x, y: x * y, shape[:2], 1)
 
         # Magic AUTO BS formula
-        auto_bs = math.floor((self.pixels_per_gb / input_buffer_bytes) * vram_gb)
+        auto_bs = math.floor((self.pixels_per_gb / input_buffer_bytes) * self.autobs_vram)
 
         # Clip to reasonable values
         auto_bs = min(self.batchsize_max, max(self.batchsize_min, auto_bs))
