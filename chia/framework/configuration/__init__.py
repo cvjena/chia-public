@@ -78,6 +78,22 @@ class ConfigurationContext:
             raise ValueError(f"Attempted to set key {full_key} after first access.")
 
 
+def get_system(key):
+    full_key = f"system.{key}"
+    if full_key not in _config_dict.keys():
+        raise ValueError(f"Unknown system config key {key}.")
+    else:
+        return _config_dict[full_key]
+
+
+def set_system(key, value):
+    full_key = f"system.{key}"
+    if full_key in _config_dict.keys():
+        raise ValueError(f"System config key {key} already exists.")
+    else:
+        _config_dict[full_key] = value
+
+
 def get(key, default_value=None, no_default=False):
     if _current_context is not None:
         return _current_context.get(key, default_value, no_default)
