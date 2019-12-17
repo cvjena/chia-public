@@ -17,6 +17,7 @@ install:
   - conda activate test-environment
   - pip install --upgrade pip
   - pip install tensorflow==2.0.0 tensorflow-addons
+  - pip install gputil
 
 script:
   - echo "Empty Project"
