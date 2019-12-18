@@ -257,7 +257,7 @@ def main():
 
                     results_across_train_pools += [results_across_test_pools]
 
-            results_across_runs += results_across_train_pools
+            results_across_runs += [results_across_train_pools]
 
         instrumentation.store_result(results_across_runs)
 
