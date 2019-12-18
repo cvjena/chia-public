@@ -29,10 +29,12 @@ class RandomActiveLearningMethod(ActiveLearningMethod):
 
 
 from chia.methods.activelearning import distribution_activelearning
+from chia.methods.activelearning import semantic_activelearning
 
 _method_mapping = {
     "Random": RandomActiveLearningMethod,
     "1vs2": distribution_activelearning.OneVsTwoActiveLearningMethod,
+    "Semantic1vs2": semantic_activelearning.SemanticOneVsTwoActiveLearningMethod,
 }
 
 
