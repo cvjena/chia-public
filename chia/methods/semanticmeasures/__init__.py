@@ -20,7 +20,7 @@ class SemanticMeasure:
         self.last_concept_stamp = self.kb.get_concept_stamp()
         relation = self.kb.all_relations["hypernymy"]
         concept_uids = self.kb.all_concepts.keys()
-        self.graph = relation["graph"]
+        self.graph = relation["graph"].reverse(copy=True)
         self.ugraph = relation["ugraph"]
 
         self.measure_cache = {}
@@ -49,8 +49,8 @@ class Zhong2002SemanticMeasure(SemanticMeasure):
 
 class MaedcheStaab2001SemanticMeasure(SemanticMeasure):
     def _measure_inner(self, uida, uidb):
-        feature_set_x = nx.ancestors(self.graph, source=x) | {x}
-        feature_set_y = nx.ancestors(self.graph, source=y) | {y}
+        feature_set_x = nx.ancestors(self.graph, source=uida) | {uida}
+        feature_set_y = nx.ancestors(self.graph, source=uidb) | {uidb}
         sim = float(len(feature_set_x & feature_set_y)) / float(
             len(feature_set_x | feature_set_y)
         )
