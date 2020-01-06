@@ -7,7 +7,7 @@ import pickle as pkl
 
 from chia.methods.common import keras_dataaugmentation, keras_learningrateschedule
 from chia.methods.incrementallearning import ProbabilityOutputModel
-from chia.data.util import batches_from
+from chia.data.util import batches_from, batches_from_pair
 from chia.framework import configuration, instrumentation
 
 
@@ -24,6 +24,9 @@ class KerasIncrementalModel(ProbabilityOutputModel):
             )
             self.batchsize_max = configuration.get("batchsize_max", 256)
             self.batchsize_min = configuration.get("batchsize_min", 1)
+            self.sequential_training_batches = configuration.get(
+                "sequential_training_batches", 1
+            )
             self.autobs_vram = configuration.get(
                 "autobs_vram", configuration.get_system("gpu0_vram")
             )
@@ -263,32 +266,6 @@ class KerasIncrementalModel(ProbabilityOutputModel):
         return auto_bs
 
     def perform_single_gradient_step(self, batch_elements_X, batch_elements_y):
-        # Build batch
-        batch_X = self.preprocess_image_batch(
-            np.stack(batch_elements_X, axis=0),
-            processing_fn=self.augmentation.process
-            if self.augmentation is not None
-            else None,
-        )
-        batch_y = (
-            batch_elements_y
-        )  # No numpy stacking here, these could be strings or something else (concept uids)
-
-        # Forward step
-        with tf.GradientTape() as tape:
-            feature_batch = self.feature_extractor(
-                batch_X, training=self.do_train_feature_extractor
-            )
-            hc_loss = self.cls.loss(feature_batch, batch_y)
-
-            if self.do_train_feature_extractor:
-                reg_loss = sum(
-                    self.feature_extractor.losses + self.cls.regularization_losses()
-                )
-            else:
-                reg_loss = self.cls.regularization_losses()
-
-            total_loss = hc_loss + reg_loss
         if self.do_train_feature_extractor:
             total_trainable_variables = (
                 self.feature_extractor.trainable_variables
@@ -297,12 +274,57 @@ class KerasIncrementalModel(ProbabilityOutputModel):
         else:
             total_trainable_variables = self.cls.trainable_variables()
 
-        # Backward step
-        gradients = tape.gradient(total_loss, total_trainable_variables)
+        # Forward step
+        inner_bs = self.get_auto_batchsize(batch_elements_X[0].shape)
+        acc_gradients = None
+        acc_hc_loss = 0
+        inner_batch_count = 0
+
+        for inner_batch_X, inner_batch_y in batches_from_pair(
+            batch_elements_X, batch_elements_y, inner_bs
+        ):
+            # Build batch
+            batch_X = self.preprocess_image_batch(
+                np.stack(inner_batch_X, axis=0),
+                processing_fn=self.augmentation.process
+                if self.augmentation is not None
+                else None,
+            )
+            batch_y = (
+                inner_batch_y
+            )  # No numpy stacking here, these could be strings or something else (concept uids)
+
+            with tf.GradientTape() as tape:
+                feature_batch = self.feature_extractor(
+                    batch_X, training=self.do_train_feature_extractor
+                )
+                hc_loss = self.cls.loss(feature_batch, batch_y)
+
+                if self.do_train_feature_extractor:
+                    reg_loss = sum(
+                        self.feature_extractor.losses + self.cls.regularization_losses()
+                    )
+                else:
+                    reg_loss = self.cls.regularization_losses()
+
+                total_loss = hc_loss + reg_loss
+
+            # Backward step
+            gradients = tape.gradient(total_loss, total_trainable_variables)
+            if acc_gradients is None:
+                acc_gradients = gradients
+            else:
+                acc_gradients = [
+                    acc_gradient + new_gradient
+                    for acc_gradient, new_gradient in zip(acc_gradients, gradients)
+                ]
+
+            acc_hc_loss += hc_loss
+            inner_batch_count += 1
 
         # Optimize
         self.optimizer.learning_rate = self.lr_schedule(self.current_step)
-        self.optimizer.apply_gradients(zip(gradients, total_trainable_variables))
+        self.optimizer.apply_gradients(zip(acc_gradients, total_trainable_variables))
 
         self.current_step += 1
-        return hc_loss
+        return acc_hc_loss / float(inner_batch_count)

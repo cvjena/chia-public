@@ -32,8 +32,9 @@ class DFNKerasIncrementalModel(KerasIncrementalModel):
     def observe_inner(self, samples, gt_resource_id, progress_callback=None):
         assert len(samples) > 0
 
-        total_bs = self.get_auto_batchsize(
-            samples[0].get_resource("input_img_np").shape
+        total_bs = (
+            self.get_auto_batchsize(samples[0].get_resource("input_img_np").shape)
+            * self.sequential_training_batches
         )
         exposure_base = 2500 if not self.do_train_feature_extractor else 10000
         new_bs = total_bs
