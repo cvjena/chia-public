@@ -29,6 +29,7 @@ def main():
     dataset_name = configuration.get("dataset", no_default=True)
     experiment_name = configuration.get("experiment_name", no_default=True)
     report_interval = configuration.get("report_interval", no_default=True)
+    report_initially = configuration.get("report_initially", no_default=True)
     validation_scale = configuration.get("validation_scale", no_default=True)
     evaluators = configuration.get("evaluators", no_default=True)
 
@@ -131,7 +132,10 @@ def main():
                 train_pool, label_gt_resource_id, label_ann_resource_id
             )
 
-            next_progress = 0.0
+            if report_initially:
+                next_progress = 0.0
+            else:
+                next_progress = report_interval
 
             def evaluate(progress=None):
                 nonlocal next_progress
