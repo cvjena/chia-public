@@ -25,6 +25,7 @@ class DFNKerasIncrementalModel(KerasIncrementalModel):
             self.exposure_coef = configuration.get("exposure_coef", 1.0)
             self.always_rehearse = configuration.get("always_rehearse", False)
             self.lambda_ = configuration.get("lambda", 0.5)
+            self.fixed_inner_steps = configuration.get("fixed_inner_steps", None)
 
         self.rehearsal_pool = []
 
@@ -42,7 +43,10 @@ class DFNKerasIncrementalModel(KerasIncrementalModel):
             / np.log10(len(samples))
             * (exposure_base / math.sqrt(total_bs))
         )
-        inner_steps = int(max(1, exposures // total_bs))
+        if self.fixed_inner_steps is None:
+            inner_steps = int(max(1, exposures // total_bs))
+        else:
+            inner_steps = self.fixed_inner_steps
 
         with InstrumentationContext(self.__class__.__name__):
             if progress_callback is not None:
