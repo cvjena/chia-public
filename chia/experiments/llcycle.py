@@ -13,6 +13,8 @@ from chia.framework import configuration, instrumentation
 from chia.data import pool
 
 import math
+import random
+import numpy as np
 
 
 @configuration.main_context()
@@ -31,7 +33,9 @@ def main():
     label_budget = configuration.get("label_budget", no_default=True)
     dataset_name = configuration.get("dataset", no_default=True)
     experiment_name = configuration.get("experiment_name", no_default=True)
+    validation_scale = configuration.get("validation_scale", no_default=True)
     evaluators = configuration.get("evaluators", no_default=True)
+    al_score_fraction = configuration.get("al_score_fraction", no_default=True)
 
     ll_cycle_mode = configuration.get("ll_cycle_mode", no_default=True)
     if ll_cycle_mode:
@@ -88,7 +92,15 @@ def main():
                 for i in range(dataset.test_pool_count()):
                     instrumentation.update_local_step(i)
                     test_pool = dataset.test_pool(i, label_gt_resource_id)
-
+                    if validation_scale < 1.0:
+                        test_pool = test_pool[
+                            : min(
+                                max(
+                                    1, int(math.ceil(len(test_pool) * validation_scale))
+                                ),
+                                len(test_pool),
+                            )
+                        ]
                     instrumentation.report("size", len(test_pool))
                     test_pools += [test_pool]
 
@@ -123,7 +135,7 @@ def main():
                     instrumentation.update_local_step(train_pool_id)
 
                     with instrumentation.InstrumentationContext(
-                        "training", take_time=True
+                        "train_pool", take_time=True
                     ):
                         # Collect training data
                         train_pool = pool.FixedPool(
@@ -141,6 +153,7 @@ def main():
 
                         # Start the cycle through the training data
                         with instrumentation.InstrumentationContext("llcycle"):
+                            results_across_cycles = []
                             current_cycle = 0
                             while train_pool_label_budget > 0:
                                 instrumentation.update_local_step(current_cycle)
@@ -164,9 +177,41 @@ def main():
                                 # Only do active learning if there is even a choice
                                 if (len(train_pool) - current_cycle_budget) > 0:
                                     # Run active learning method
-                                    scored_train_pool = alm.score(
-                                        train_pool, al_score_resource_id
-                                    )
+                                    if current_cycle > 0:
+                                        if al_score_fraction < 1.0:
+                                            # Don't look at whole training pool
+                                            fraction_train_pool = np.random.choice(
+                                                train_pool,
+                                                min(
+                                                    len(train_pool),
+                                                    max(
+                                                        1,
+                                                        math.ceil(
+                                                            len(train_pool)
+                                                            * al_score_fraction
+                                                        ),
+                                                    ),
+                                                ),
+                                                replace=False,
+                                            )
+                                            scored_train_pool = alm.score(
+                                                fraction_train_pool,
+                                                al_score_resource_id,
+                                            )
+                                        else:
+                                            scored_train_pool = alm.score(
+                                                train_pool, al_score_resource_id
+                                            )
+                                    else:
+                                        scored_train_pool = [
+                                            sample.add_resource(
+                                                "llcycle",
+                                                al_score_resource_id,
+                                                random.uniform(0.0, 1.0),
+                                            )
+                                            for sample in train_pool
+                                        ]
+
                                     sorted_scored_train_pool = list(
                                         sorted(
                                             scored_train_pool,
@@ -227,35 +272,43 @@ def main():
                                 )
                                 current_cycle += 1
 
-                    # Quick reclass accuracy
-                    with instrumentation.InstrumentationContext("reclassification"):
-                        evaluator.update(
-                            ilm.predict(labeled_pool, label_pred_resource_id),
-                            label_ann_resource_id,
-                            label_pred_resource_id,
-                        )
-                        instrumentation.report_dict(evaluator.result())
-                        evaluator.reset()
+                                # Quick reclass accuracy
+                                with instrumentation.InstrumentationContext(
+                                    "reclassification"
+                                ):
+                                    evaluator.update(
+                                        ilm.predict(
+                                            labeled_pool, label_pred_resource_id
+                                        ),
+                                        label_ann_resource_id,
+                                        label_pred_resource_id,
+                                    )
+                                    instrumentation.report_dict(evaluator.result())
+                                    evaluator.reset()
 
-                    # Validation
-                    with instrumentation.InstrumentationContext(
-                        "validation", take_time=True
-                    ):
-                        results_across_test_pools = []
-                        for test_pool_id in range(len(test_pools)):
-                            instrumentation.update_local_step(test_pool_id)
-                            evaluator.update(
-                                ilm.predict(
-                                    test_pools[test_pool_id], label_pred_resource_id
-                                ),
-                                label_gt_resource_id,
-                                label_pred_resource_id,
-                            )
-                            instrumentation.report_dict(evaluator.result())
-                            results_across_test_pools += [evaluator.result()]
-                            evaluator.reset()
+                                # Validation
+                                with instrumentation.InstrumentationContext(
+                                    "validation", take_time=True
+                                ):
+                                    results_across_test_pools = []
+                                    for test_pool_id in range(len(test_pools)):
+                                        instrumentation.update_local_step(test_pool_id)
+                                        evaluator.update(
+                                            ilm.predict(
+                                                test_pools[test_pool_id],
+                                                label_pred_resource_id,
+                                            ),
+                                            label_gt_resource_id,
+                                            label_pred_resource_id,
+                                        )
+                                        instrumentation.report_dict(evaluator.result())
+                                        results_across_test_pools += [
+                                            evaluator.result()
+                                        ]
+                                        evaluator.reset()
+                                    results_across_cycles += [results_across_test_pools]
 
-                    results_across_train_pools += [results_across_test_pools]
+                    results_across_train_pools += [results_across_cycles]
 
             results_across_runs += [results_across_train_pools]
 
