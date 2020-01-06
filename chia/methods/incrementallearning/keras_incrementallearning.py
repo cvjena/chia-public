@@ -324,7 +324,15 @@ class KerasIncrementalModel(ProbabilityOutputModel):
 
         # Optimize
         self.optimizer.learning_rate = self.lr_schedule(self.current_step)
-        self.optimizer.apply_gradients(zip(acc_gradients, total_trainable_variables))
+        self.optimizer.apply_gradients(
+            zip(
+                [
+                    acc_gradient / float(inner_batch_count)
+                    for acc_gradient in acc_gradients
+                ],
+                total_trainable_variables,
+            )
+        )
 
         self.current_step += 1
         return acc_hc_loss / float(inner_batch_count)
