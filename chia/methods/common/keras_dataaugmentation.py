@@ -7,7 +7,12 @@ from chia.framework import configuration
 class KerasDataAugmentation:
     def __init__(self):
         with configuration.ConfigurationContext(self.__class__.__name__):
-            self.do_random_flip = configuration.get("do_random_flip", True)
+            self.do_random_flip_horizontal = configuration.get(
+                "do_random_flip_horizontal", True
+            )
+            self.do_random_flip_vertical = configuration.get(
+                "do_random_flip_vertical", True
+            )
 
             self.do_random_rotate = configuration.get("do_random_rotate", True)
 
@@ -44,8 +49,9 @@ class KerasDataAugmentation:
 
     @tf.function
     def _process_sample(self, sample):
-        if self.do_random_flip:
+        if self.do_random_flip_horizontal:
             sample = tf.image.random_flip_left_right(sample)
+        if self.do_random_flip_vertical:
             sample = tf.image.random_flip_up_down(sample)
 
         if self.do_random_rotate:
@@ -55,7 +61,7 @@ class KerasDataAugmentation:
                 interpolation="BILINEAR",
             )
 
-        if self.do_random_crop or self.do_scale:
+        if self.do_random_crop or self.do_random_scale:
             sample = self._inner_random_crop_or_scale(sample)
 
         if self.do_random_brightness_and_contrast:
