@@ -30,6 +30,7 @@ class KerasIncrementalModel(ProbabilityOutputModel):
             self.use_pretrained_weights = configuration.get(
                 "use_pretrained_weights", "ILSVRC2012"
             )
+            self.random_crop_to_size = configuration.get("random_crop_to_size", None)
             self.batchsize_max = configuration.get("batchsize_max", 256)
             self.batchsize_min = configuration.get("batchsize_min", 1)
             self.sequential_training_batches = configuration.get(
@@ -209,7 +210,9 @@ class KerasIncrementalModel(ProbabilityOutputModel):
         )
         for (small_batch, built_image_batch) in faster_generator:
             tp_before_preprocess = time.time()
-            image_batch = self.preprocess_image_batch(built_image_batch)
+            image_batch = self.preprocess_image_batch(
+                built_image_batch, is_training=False
+            )
             tp_before_features = time.time()
             feature_batch = self.feature_extractor(image_batch, training=False)
             tp_before_cls = time.time()
@@ -259,7 +262,9 @@ class KerasIncrementalModel(ProbabilityOutputModel):
         for small_batch, built_image_batch in ioqueue.make_generator_faster(
             my_gen, method="synchronous", max_buffer_size=5
         ):
-            image_batch = self.preprocess_image_batch(built_image_batch)
+            image_batch = self.preprocess_image_batch(
+                built_image_batch, is_training=False
+            )
             feature_batch = self.feature_extractor(image_batch, training=False)
             predictions = self.cls.predict_dist(feature_batch)
             return_samples += [
@@ -292,16 +297,30 @@ class KerasIncrementalModel(ProbabilityOutputModel):
             np_images = [sample.get_resource("input_img_np") for sample in samples]
         return np.stack(np_images, axis=0)
 
-    def preprocess_image_batch(self, image_batch, processing_fn=None):
+    def preprocess_image_batch(self, image_batch, is_training, processing_fn=None):
         if processing_fn is not None:
             image_batch = tf.cast(image_batch, dtype=tf.float32) / 255.0
             image_batch = processing_fn(image_batch)
             image_batch = (2.0 * image_batch) - 1.0
-            return image_batch
         else:
             image_batch = tf.cast(image_batch, dtype=tf.float32)
             image_batch = (image_batch / 127.5) - 1.0
-            return image_batch
+
+        # Do cropping here instead of in augmentation because all augmentation is
+        # disabled during testing...
+        if self.random_crop_to_size is not None:
+            if is_training:
+                image_batch = tf.map_fn(self._random_crop_single_image, image_batch)
+            else:
+                image_batch = tf.image.crop_to_bounding_box(
+                    image_batch,
+                    (image_batch.shape[1] - self.random_crop_to_size[1]) // 2,
+                    (image_batch.shape[2] - self.random_crop_to_size[0]) // 2,
+                    self.random_crop_to_size[1],
+                    self.random_crop_to_size[0],
+                )
+
+        return image_batch
 
     def get_auto_batchsize(self, shape):
         # Calculate input buffer size
@@ -344,6 +363,7 @@ class KerasIncrementalModel(ProbabilityOutputModel):
             # Build batch
             batch_X = self.preprocess_image_batch(
                 np.stack(inner_batch_X, axis=0),
+                is_training=True,
                 processing_fn=self.augmentation.process
                 if self.augmentation is not None
                 else None,
@@ -394,6 +414,11 @@ class KerasIncrementalModel(ProbabilityOutputModel):
 
         self.current_step += 1
         return acc_hc_loss / float(inner_batch_count)
+
+    def _random_crop_single_image(self, image):
+        return tf.image.random_crop(
+            image, [self.random_crop_to_size[1], self.random_crop_to_size[0], 3]
+        )
 
 
 def _get_input_img_np(sample):
