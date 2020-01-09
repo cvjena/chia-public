@@ -14,6 +14,7 @@ class NABirdsDataset(datasets.Dataset):
         with configuration.ConfigurationContext(self.__class__.__name__):
             self.base_path = configuration.get("base_path", "/home/datasets/nabirds")
             self.side_length = configuration.get("side_length", 224)
+            self.use_lazy_mode = configuration.get("use_lazy_mode", True)
 
         with open(os.path.join(self.base_path, "classes.txt")) as cls:
             lines = [x.strip() for x in cls]
@@ -117,25 +118,33 @@ class NABirdsDataset(datasets.Dataset):
         ]
 
     def _build_sample(self, image_id, label_id, label_resource_id, split):
-        return (
-            sample.Sample(
-                source=self.__class__.__name__,
-                uid=f"{_namespace_uid}::{split}:{image_id}",
-            )
-            .add_resource(
+        sample_ = sample.Sample(
+            source=self.__class__.__name__, uid=f"{_namespace_uid}::{split}:{image_id}"
+        ).add_resource(
+            self.__class__.__name__,
+            label_resource_id,
+            self.nabirds_id_to_label[label_id],
+        )
+        if self.use_lazy_mode:
+            sample_ = sample_.add_resource(
                 self.__class__.__name__,
-                label_resource_id,
-                self.nabirds_id_to_label[label_id],
+                "image_location",
+                os.path.join(self.base_path, "images", self.iid_dict[image_id]),
+            ).add_lazy_resource(
+                self.__class__.__name__, "input_img_np", self._load_from_location
             )
-            .add_resource(
+        else:
+            sample_ = sample_.add_resource(
                 self.__class__.__name__,
                 "image_location",
                 os.path.join(self.base_path, "images", self.iid_dict[image_id]),
             )
-            .add_lazy_resource(
-                self.__class__.__name__, "input_img_np", self._load_from_location
+            sample_ = sample_.add_resource(
+                self.__class__.__name__,
+                "input_img_np",
+                self._load_from_location(sample_),
             )
-        )
+        return sample_
 
     def _load_from_location(self, sample_):
         im = Image.open(sample_.get_resource("image_location")).resize(
