@@ -1,6 +1,8 @@
+import math
+
 import tensorflow as tf
 import tensorflow_addons as tfa
-import math
+
 from chia.framework import configuration
 
 

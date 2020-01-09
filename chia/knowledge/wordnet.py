@@ -1,7 +1,8 @@
 from nltk.corpus import wordnet
 
-from . import RelationSource
 from chia.framework import caching
+
+from . import RelationSource
 
 
 class WordNetAccess(RelationSource):

@@ -1,8 +1,9 @@
 import os
+
 import imageio
 
 from chia import knowledge
-from chia.data import sample, datasets
+from chia.data import datasets, sample
 from chia.framework import configuration
 
 _namespace_uid = "iCubWorld28"

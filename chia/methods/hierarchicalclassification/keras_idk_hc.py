@@ -1,8 +1,8 @@
 import pickle
 
+import networkx as nx
 import numpy as np
 import tensorflow as tf
-import networkx as nx
 
 from chia.framework import configuration
 from chia.framework.instrumentation import InstrumentationContext, report

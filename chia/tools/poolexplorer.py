@@ -1,9 +1,7 @@
-from PyQt5 import QtWidgets
-from PyQt5 import QtGui
-from PyQt5 import QtCore
+import os
 
 from PIL import Image
-import os
+from PyQt5 import QtCore, QtGui, QtWidgets
 
 
 def explore(pool, in_app=False):

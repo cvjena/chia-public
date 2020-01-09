@@ -1,11 +1,12 @@
-import numpy as np
-import pickle as pkl
-import os
 import glob
+import os
+import pickle as pkl
 
-from chia.data import sample, datasets
-from chia.framework import configuration
+import numpy as np
+
 from chia import knowledge
+from chia.data import datasets, sample
+from chia.framework import configuration
 
 _namespace_uid = "CORe50"
 

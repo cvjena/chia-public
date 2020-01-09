@@ -1,5 +1,5 @@
-import unittest
 import functools
+import unittest
 
 from chia.data import datasets
 

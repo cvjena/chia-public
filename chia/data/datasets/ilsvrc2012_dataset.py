@@ -1,7 +1,7 @@
 import os
 
+from chia.data import datasets, sample
 from chia.framework import configuration
-from chia.data import sample, datasets
 
 _namespace_uid = "ILSVRC2012"
 

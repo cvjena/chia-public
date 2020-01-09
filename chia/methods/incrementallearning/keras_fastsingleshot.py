@@ -1,15 +1,15 @@
 import random
+import time
 
+from chia.framework import configuration, ioqueue
 from chia.framework.instrumentation import (
     InstrumentationContext,
     report,
     update_local_step,
 )
-from chia.framework import configuration, ioqueue
 from chia.methods.incrementallearning.keras_incrementallearning import (
     KerasIncrementalModel,
 )
-import time
 
 
 class FastSingleShotKerasIncrementalModel(KerasIncrementalModel):

@@ -1,22 +1,23 @@
-from abc import abstractmethod
-import tensorflow as tf
-import numpy as np
 import functools
 import math
+import multiprocessing
 import pickle as pkl
 import time
-import multiprocessing
+from abc import abstractmethod
+
+import numpy as np
+import tensorflow as tf
 from tensorflow.keras.applications import (
-    resnet_v2,
     inception_resnet_v2,
     mobilenet_v2,
     nasnet,
+    resnet_v2,
 )
 
-from chia.methods.common import keras_dataaugmentation, keras_learningrateschedule
-from chia.methods.incrementallearning import ProbabilityOutputModel
 from chia.data.util import batches_from, batches_from_pair
 from chia.framework import configuration, instrumentation, ioqueue
+from chia.methods.common import keras_dataaugmentation, keras_learningrateschedule
+from chia.methods.incrementallearning import ProbabilityOutputModel
 
 
 class KerasIncrementalModel(ProbabilityOutputModel):

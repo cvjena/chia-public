@@ -1,19 +1,20 @@
-import random
 import math
-import numpy as np
-import pickle as pkl
 import os
+import pickle as pkl
+import random
 
+import numpy as np
+
+from chia.data import sample
+from chia.framework import configuration
 from chia.framework.instrumentation import (
     InstrumentationContext,
     report,
     update_local_step,
 )
-from chia.framework import configuration
 from chia.methods.incrementallearning.keras_incrementallearning import (
     KerasIncrementalModel,
 )
-from chia.data import sample
 
 
 class DFNKerasIncrementalModel(KerasIncrementalModel):

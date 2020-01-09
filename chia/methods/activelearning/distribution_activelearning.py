@@ -1,6 +1,7 @@
-from abc import ABC, abstractmethod
-from typing import Sequence, Tuple, Hashable
 import random
+from abc import ABC, abstractmethod
+from typing import Hashable, Sequence, Tuple
+
 from chia.methods.activelearning import ActiveLearningMethod
 
 

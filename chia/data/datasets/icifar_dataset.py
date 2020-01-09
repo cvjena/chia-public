@@ -1,8 +1,9 @@
 import random
+
 import numpy as np
 
-from chia.data import sample, datasets
 from chia import knowledge
+from chia.data import datasets, sample
 
 _namespace_uid = f"iCIFAR"
 
@@ -217,9 +218,9 @@ class iCIFARDataset(datasets.Dataset):
     def __init__(self):
         import tensorflow as tf
 
-        (self.train_X, self.train_y), (
-            self.test_X,
-            self.test_y,
+        (
+            (self.train_X, self.train_y),
+            (self.test_X, self.test_y,),
         ) = tf.keras.datasets.cifar100.load_data(label_mode="fine")
 
         self.sequence_seed = 19219

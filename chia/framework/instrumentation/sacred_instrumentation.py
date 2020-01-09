@@ -1,7 +1,8 @@
 """ sacred_instrumentation: For this file you need to install the sacred pip package."""
-import sacred
-import threading
 import os
+import threading
+
+import sacred
 
 from chia.framework import configuration, instrumentation
 

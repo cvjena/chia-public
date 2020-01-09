@@ -1,10 +1,11 @@
 import os
-from PIL import Image
-import numpy as np
 
-from chia.framework import configuration, robustness
-from chia.data import sample, datasets
+import numpy as np
+from PIL import Image
+
 from chia import knowledge
+from chia.data import datasets, sample
+from chia.framework import configuration, robustness
 
 _namespace_uid = "NABirds"
 

@@ -1,9 +1,8 @@
 import random
 
 from chia.framework import configuration
-from chia.methods.activelearning import distribution_activelearning
-
 from chia.methods import semanticmeasures
+from chia.methods.activelearning import distribution_activelearning
 
 
 class SemanticOneVsTwoActiveLearningMethod(

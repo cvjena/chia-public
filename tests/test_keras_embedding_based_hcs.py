@@ -1,7 +1,7 @@
 import unittest
 
-from chia.methods import hierarchicalclassification
 from chia import knowledge
+from chia.methods import hierarchicalclassification
 
 
 class KerasEmbeddingBasedHCTestCase(unittest.TestCase):
