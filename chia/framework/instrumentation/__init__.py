@@ -45,7 +45,7 @@ class InstrumentationContext:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         for observer in self._observers:
-            observer.on_context_exit(self.stored_result, self.run_id)
+            observer.on_context_exit(self.stored_result, self.run_id, exc_val)
 
         if self.take_time:
             self.timer.__exit__(None, None, None)
@@ -132,7 +132,7 @@ class InstrumentationObserver(abc.ABC):
     def on_context_enter(self):
         pass
 
-    def on_context_exit(self, stored_result, run_id):
+    def on_context_exit(self, stored_result, run_id, stored_exception):
         pass
 
     @abc.abstractmethod
@@ -157,16 +157,18 @@ class PrintObserver(InstrumentationObserver):
         )
         print(f"{description_string:49s} @ {steps_string:10s}: {value}")
 
-    def on_context_exit(self, stored_result, run_id):
+    def on_context_exit(self, stored_result, run_id, stored_exception):
         if stored_result is not None:
             print(f"{self._prefix}#{run_id}: RESULT = {stored_result}")
+        if stored_exception is not None:
+            print(f"{self._prefix}#{run_id}: EXC = {stored_exception}")
 
 
 class JSONResultObserver(InstrumentationObserver):
     def report(self, metric, value, steps, contexts):
         pass
 
-    def on_context_exit(self, stored_result, run_id):
+    def on_context_exit(self, stored_result, run_id, stored_exception):
         if stored_result is not None:
             try:
                 output = json.dumps(stored_result, indent=2)

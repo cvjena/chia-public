@@ -28,6 +28,7 @@ class SacredObserver(instrumentation.InstrumentationObserver):
         self.run_object_available = None
         self.sacred_thread = None
         self.stored_result = None
+        self.stored_exception = None
 
     def report(self, metric, value, steps, contexts):
         assert self.sacred_run is not None
@@ -46,6 +47,9 @@ class SacredObserver(instrumentation.InstrumentationObserver):
             self.sacred_run = _run
             self.run_object_available.set()
             self.done.wait()
+            if self.stored_exception is not None:
+                raise self.stored_exception
+
             return self.stored_result
 
         self.sacred_experiment.main(experiment_main)
@@ -66,11 +70,9 @@ class SacredObserver(instrumentation.InstrumentationObserver):
 
         instrumentation.update_run_id(self.sacred_run._id)
 
-        # print("Custom configuration:")
-        # print(configuration.dump_custom_json())
-
-    def on_context_exit(self, stored_result, run_id):
-        super().on_context_exit(stored_result, run_id)
+    def on_context_exit(self, stored_result, run_id, stored_exception):
+        super().on_context_exit(stored_result, run_id, stored_exception)
+        self.stored_exception = stored_exception
         self.stored_result = stored_result
         self.done.set()
         self.sacred_thread.join()
