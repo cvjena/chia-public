@@ -28,6 +28,10 @@ def main():
     validation_scale = configuration.get("validation_scale", no_default=True)
     evaluators = configuration.get("evaluators", no_default=True)
 
+    # Save and restore
+    restore_path = configuration.get("restore_path", no_default=True)
+    save_path = configuration.get("save_path", no_default=True)
+
     # Eval config
     use_sacred_observer = configuration.get("use_sacred_observer", no_default=True)
 
@@ -93,19 +97,27 @@ def main():
             kb = knowledge.KnowledgeBase()
             im = interaction.OracleInteractionMethod()
 
-            # Add hierarchy
-            wna = wordnet.WordNetAccess()
-            kb.add_relation(
-                "hypernymy",
-                is_symmetric=False,
-                is_transitive=True,
-                is_reflexive=False,
-                explore_left=False,
-                explore_right=True,
-                sources=[dataset.relation("hypernymy"), wna],
-            )
+            if restore_path is not None:
+                kb.restore(restore_path)
+            else:
+                # Add hierarchy
+                wna = wordnet.WordNetAccess()
+                kb.add_relation(
+                    "hypernymy",
+                    is_symmetric=False,
+                    is_transitive=True,
+                    is_reflexive=False,
+                    explore_left=False,
+                    explore_right=True,
+                    sources=[dataset.relation("hypernymy"), wna],
+                )
+
             cls = hierarchicalclassification.method(cls_method, kb)
             ilm = incrementallearning.method(ilm_method, cls)
+
+            # Restore
+            if restore_path is not None:
+                ilm.restore(restore_path)
 
             # Evaluator
             evaluator = evaluation.method(evaluators, kb)
@@ -208,6 +220,11 @@ def main():
             results_across_runs += [results_during_run + [evaluate()]]
 
         instrumentation.store_result(results_across_runs)
+
+        # Save
+        if save_path is not None:
+            kb.save(save_path)
+            ilm.save(save_path)
 
 
 if __name__ == "__main__":
