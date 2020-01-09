@@ -2,7 +2,7 @@ import os
 from PIL import Image
 import numpy as np
 
-from chia.framework import configuration
+from chia.framework import configuration, robustness
 from chia.data import sample, datasets
 from chia import knowledge
 
@@ -141,9 +141,9 @@ class NABirdsDataset(datasets.Dataset):
         return sample_
 
     def _load_from_location(self, sample_):
-        im = Image.open(sample_.get_resource("image_location")).resize(
-            (self.side_length, self.side_length), Image.ANTIALIAS
-        )
+        im = robustness.NetworkResistantImage.open(
+            sample_.get_resource("image_location")
+        ).resize((self.side_length, self.side_length), Image.ANTIALIAS)
         if im.mode != "RGB":
             im = im.convert("RGB")
         return np.asarray(im)
