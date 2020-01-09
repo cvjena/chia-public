@@ -1,4 +1,8 @@
 repos:
+-   repo: https://github.com/timothycrosley/isort
+    rev: 4.3.21
+    hooks:
+    - id: isort
 -   repo: https://github.com/ambv/black
     rev: 19.10b0
     hooks:
@@ -8,7 +12,3 @@ repos:
     rev: v2.4.0
     hooks:
     - id: flake8
--   repo: https://github.com/timothycrosley/isort
-    rev: 4.3.21
-    hooks:
-    - id: isort
