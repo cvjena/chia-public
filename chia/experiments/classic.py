@@ -147,7 +147,9 @@ def main():
                         next_progress += report_interval
 
                 # Quick reclass accuracy
-                with instrumentation.InstrumentationContext("reclassification"):
+                with instrumentation.InstrumentationContext(
+                    "reclassification", take_time=True
+                ):
                     instrumentation.update_local_step(0)
                     if validation_scale < 1.0:
                         reclass_pool = labeled_pool[
