@@ -32,7 +32,8 @@ class ConfigurationContext:
         if full_key not in _config_dict.keys():
             if no_default:
                 raise ValueError(
-                    f"Requested read of config key {full_key} for which there is no default given!"
+                    f"Requested read of config key {full_key}"
+                    + " for which there is no default given!"
                 )
             else:
                 _config_dict[full_key] = {
@@ -46,14 +47,16 @@ class ConfigurationContext:
                 and not _config_dict[full_key]["is_default"]
             ):
                 print(
-                    f"WARNING: Default value for {full_key} repeated in custom configuration!"
+                    f"WARNING: Default value for {full_key}"
+                    + " repeated in custom configuration!"
                 )
             if (
                 _config_dict[full_key]["value"] != default_value
                 and _config_dict[full_key]["is_default"]
             ):
                 print(
-                    f"WARNING: Default value for {full_key} defined in different ways!"
+                    f"WARNING: Default value for {full_key}"
+                    + " defined in different ways!"
                 )
 
         value = _config_dict[full_key]["value"]
@@ -92,11 +95,7 @@ def set_system(key, value):
     if full_key in _config_dict.keys():
         raise ValueError(f"System config key {key} already exists.")
     else:
-        _config_dict[full_key] = {
-                "value": value,
-                "is_default": False,
-                "access_ctr": 0,
-            }
+        _config_dict[full_key] = {"value": value, "is_default": False, "access_ctr": 0}
 
 
 def get(key, default_value=None, no_default=False):
@@ -160,7 +159,8 @@ def dump_default_dict():
 def _load_json(path):
     if len(_config_dict.items()) != 0:
         print(
-            f"WARNING: Loading multiple JSON files for configuration. Current file: {path}"
+            f"WARNING: Loading multiple JSON files"
+            + f" for configuration. Current file: {path}"
         )
     else:
         print(f"Using config source: {path}")
@@ -191,7 +191,7 @@ def _update(config_key, value):
 def main_context(config_sources=None):
     def inner_main_context(func):
         def wrapper():
-            with ConfigurationContext("global") as ctx:
+            with ConfigurationContext("global"):
                 if config_sources is None:
                     total_config_sources = ["configuration.json"]
                 else:
@@ -203,14 +203,14 @@ def main_context(config_sources=None):
                             _load_json(config_source)
                         else:
                             print(
-                                f"WARNING: Skipping configuration file {config_source} that could not be found!"
+                                f"WARNING: Skipping configuration file"
+                                + f" {config_source} that could not be found!"
                             )
                     except Exception as ex:
                         print(f"Exception during defaults loading: {ex}")
                         raise ex
 
                 try:
-                    import sys
                     import argparse
 
                     parser = argparse.ArgumentParser()
@@ -230,7 +230,8 @@ def main_context(config_sources=None):
                             ):
                                 value = str(value)
                                 print(
-                                    f"WARNING: Interpreting {config_key}={value} as string!"
+                                    f"WARNING: Interpreting "
+                                    + f"{config_key}={value} as string!"
                                 )
                             _update(config_key, value)
                         else:

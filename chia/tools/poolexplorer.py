@@ -35,7 +35,6 @@ def explore(pool, in_app=False):
     def sample_list_item_clicked(currentRow):
         nonlocal current_sample
         if currentRow >= 0:
-            selected_sample = currentRow
             current_sample = pool[currentRow]
             update_resource_id_list()
             resource_id_list.setCurrentRow(0)

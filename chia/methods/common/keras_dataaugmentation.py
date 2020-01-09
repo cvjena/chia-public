@@ -1,8 +1,6 @@
 import tensorflow as tf
 import tensorflow_addons as tfa
 import math
-import numpy as np
-
 from chia.framework import configuration
 
 
@@ -51,9 +49,6 @@ class KerasDataAugmentation:
             sample = tf.image.random_flip_up_down(sample)
 
         if self.do_random_rotate:
-            # sample = tf.image.rot90(
-            #     sample, tf.random.uniform(shape=[], minval=0, maxval=4, dtype=tf.int32)
-            # )
             sample = tfa.image.rotate(
                 sample,
                 angles=tf.random.uniform(shape=[], minval=0, maxval=2.0 * math.pi),

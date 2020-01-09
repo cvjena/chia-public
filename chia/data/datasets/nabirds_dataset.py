@@ -55,18 +55,12 @@ class NABirdsDataset(datasets.Dataset):
 
                     combinedtuples = [(a, b, d) for (a, b, c, d) in combinedtuples]
 
-                    _nabirds_ids_with_instances = {
-                        id for (img, id, tt) in combinedtuples
-                    }
-
                     self._nabirds_training_tuples = [
                         (img, id) for (img, id, tt) in combinedtuples if tt == 1
                     ]
                     self._nabirds_validation_tuples = [
                         (img, id) for (img, id, tt) in combinedtuples if tt == 0
                     ]
-
-                    _nabirds_all_image_ids = [img for (img, id, tt) in combinedtuples]
 
         with open(os.path.join(self.base_path, "hierarchy.txt")) as hie:
             lines = [x.strip() for x in hie]

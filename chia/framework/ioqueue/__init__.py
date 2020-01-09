@@ -1,4 +1,3 @@
-import collections
 import time
 import threading
 import multiprocessing

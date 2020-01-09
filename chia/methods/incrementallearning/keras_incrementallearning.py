@@ -6,6 +6,12 @@ import math
 import pickle as pkl
 import time
 import multiprocessing
+from tensorflow.keras.applications import (
+    resnet_v2,
+    inception_resnet_v2,
+    mobilenet_v2,
+    nasnet,
+)
 
 from chia.methods.common import keras_dataaugmentation, keras_learningrateschedule
 from chia.methods.incrementallearning import ProbabilityOutputModel
@@ -44,7 +50,7 @@ class KerasIncrementalModel(ProbabilityOutputModel):
             self.lr_schedule = keras_learningrateschedule.get(self.lr_schedule_cfg)
 
         if self.architecture == "keras::ResNet50V2":
-            self.feature_extractor = tf.keras.applications.resnet_v2.ResNet50V2(
+            self.feature_extractor = resnet_v2.ResNet50V2(
                 include_top=False,
                 input_tensor=None,
                 input_shape=None,
@@ -58,7 +64,7 @@ class KerasIncrementalModel(ProbabilityOutputModel):
             self._add_regularizers()
 
         elif self.architecture == "keras::InceptionResNetV2":
-            self.feature_extractor = tf.keras.applications.inception_resnet_v2.InceptionResNetV2(
+            self.feature_extractor = inception_resnet_v2.InceptionResNetV2(
                 include_top=False,
                 input_tensor=None,
                 input_shape=None,
@@ -74,7 +80,7 @@ class KerasIncrementalModel(ProbabilityOutputModel):
         elif self.architecture == "keras::MobileNetV2":
             with configuration.ConfigurationContext("KerasIncrementalModel"):
                 self.side_length = configuration.get("side_length", no_default=True)
-            self.feature_extractor = tf.keras.applications.mobilenet_v2.MobileNetV2(
+            self.feature_extractor = mobilenet_v2.MobileNetV2(
                 include_top=False,
                 input_tensor=None,
                 input_shape=(self.side_length, self.side_length, 3),
@@ -90,7 +96,7 @@ class KerasIncrementalModel(ProbabilityOutputModel):
         elif self.architecture == "keras::NASNetMobile":
             with configuration.ConfigurationContext("KerasIncrementalModel"):
                 self.side_length = configuration.get("side_length", no_default=True)
-            self.feature_extractor = tf.keras.applications.nasnet.NASNetMobile(
+            self.feature_extractor = nasnet.NASNetMobile(
                 include_top=False,
                 input_tensor=None,
                 input_shape=(self.side_length, self.side_length, 3),
@@ -142,7 +148,8 @@ class KerasIncrementalModel(ProbabilityOutputModel):
         if self.l2_regularization == 0:
             return
 
-        # Add regularizer: see https://jricheimer.github.io/keras/2019/02/06/keras-hack-1/
+        # Add regularizer:
+        # see https://jricheimer.github.io/keras/2019/02/06/keras-hack-1/
         for layer in self.feature_extractor.layers:
             if (
                 isinstance(layer, tf.keras.layers.Conv2D)
@@ -229,9 +236,14 @@ class KerasIncrementalModel(ProbabilityOutputModel):
         print(f"Time (features): {total_time_features}")
         print(f"Time (cls): {total_time_cls}")
         print(f"Time (write): {total_time_write}")
-        print(
-            f"Total time: {total_time_data + total_time_preprocess + total_time_features + total_time_cls + total_time_write}"
+        total_time_overall = (
+            total_time_data
+            + total_time_preprocess
+            + total_time_features
+            + total_time_cls
+            + total_time_write
         )
+        print(f"Total time: {total_time_overall}")
         return return_samples
 
     def predict_probabilities(self, samples, prediction_dist_resource_id):
@@ -336,9 +348,9 @@ class KerasIncrementalModel(ProbabilityOutputModel):
                 if self.augmentation is not None
                 else None,
             )
-            batch_y = (
-                inner_batch_y
-            )  # No numpy stacking here, these could be strings or something else (concept uids)
+            batch_y = inner_batch_y
+            # No numpy stacking here, these could be
+            # strings or something else (concept uids)
 
             with tf.GradientTape() as tape:
                 feature_batch = self.feature_extractor(

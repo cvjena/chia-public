@@ -105,7 +105,7 @@ class IDKEmbeddingBasedKerasHC(EmbeddingBasedKerasHC):
             old_uidtodim = self.uid_to_dimension
             old_graph = self.graph
 
-        except:
+        except Exception:
             old_weights = []
             old_uidtodim = []
             old_graph = None
@@ -214,7 +214,7 @@ class IDKEmbeddingBasedKerasHC(EmbeddingBasedKerasHC):
             has_weights = False
             try:
                 has_weights = len(self.fc_layer.get_weights()) == 2
-            except:
+            except Exception:
                 pass
 
             if not has_weights:

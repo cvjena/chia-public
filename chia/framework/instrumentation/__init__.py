@@ -170,12 +170,12 @@ class JSONResultObserver(InstrumentationObserver):
         if stored_result is not None:
             try:
                 output = json.dumps(stored_result, indent=2)
-            except:
+            except Exception:
                 output = str(stored_result)
 
             try:
                 fname = f"storedresult-{self._prefix}-{run_id}.json"
                 with open(fname, "w") as target:
                     target.write(output)
-            except Exception as ex:
+            except Exception:
                 print("WARNING: Could not store result: {str(ex}")

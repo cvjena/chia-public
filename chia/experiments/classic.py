@@ -1,10 +1,5 @@
 from chia.data import datasets
-from chia.methods import (
-    incrementallearning,
-    hierarchicalclassification,
-    activelearning,
-    interaction,
-)
+from chia.methods import incrementallearning, hierarchicalclassification, interaction
 from chia.framework.instrumentation import sacred_instrumentation
 from chia import knowledge
 from chia.knowledge import wordnet

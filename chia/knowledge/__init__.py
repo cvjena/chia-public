@@ -194,9 +194,13 @@ class KnowledgeBase:
 
     def restore(self, path):
         with open(path + "_knowledgebase.pkl", "rb") as target:
-            self.concept_stamp, self.observation_stamp, self.relation_stamp, self.all_concepts, self.all_relations = pickle.load(
-                target
-            )
+            (
+                self.concept_stamp,
+                self.observation_stamp,
+                self.relation_stamp,
+                self.all_concepts,
+                self.all_relations,
+            ) = pickle.load(target)
 
 
 class RelationSource(abc.ABC):

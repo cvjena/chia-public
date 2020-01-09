@@ -58,7 +58,7 @@ class AccuracyEvaluator(Evaluator):
         return {"accuracy": float(self.correct_count) / float(self.sample_count)}
 
 
-from . import hierarchical
+from . import hierarchical  # noqa
 
 
 _method_mapping = {

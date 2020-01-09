@@ -33,7 +33,7 @@ class OneHotEmbeddingBasedKerasHC(EmbeddingBasedKerasHC):
 
             try:
                 old_weights = self.fc_layer.get_weights()
-            except:
+            except Exception:
                 old_weights = []
 
             self.fc_layer = tf.keras.layers.Dense(
@@ -149,7 +149,7 @@ class OneHotEmbeddingBasedKerasHC(EmbeddingBasedKerasHC):
             has_weights = False
             try:
                 has_weights = len(self.fc_layer.get_weights()) == 2
-            except:
+            except Exception:
                 pass
 
             if not has_weights:

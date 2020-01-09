@@ -1,9 +1,4 @@
-import uuid
 import abc
-
-from chia.data.pool import FixedPool
-from chia.data.sample import Sample
-from chia.knowledge import KnowledgeBase
 
 
 class Dataset(abc.ABC):
@@ -50,7 +45,8 @@ from chia.data.datasets import (
     ilsvrc2012_dataset,
     lndw_dataset,
     nabirds_dataset,
-)
+)  # noqa
+
 
 _dataset_mapping = {
     "CORe50": core50_dataset.CORe50Dataset,

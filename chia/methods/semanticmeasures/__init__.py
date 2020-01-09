@@ -1,4 +1,3 @@
-import numpy as np
 from networkx.algorithms import shortest_paths
 import networkx as nx
 

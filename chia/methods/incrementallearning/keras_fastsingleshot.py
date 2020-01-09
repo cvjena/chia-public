@@ -9,7 +9,6 @@ from chia.framework import configuration, ioqueue
 from chia.methods.incrementallearning.keras_incrementallearning import (
     KerasIncrementalModel,
 )
-from chia.data import sample
 import time
 
 

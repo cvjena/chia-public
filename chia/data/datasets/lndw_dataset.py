@@ -46,7 +46,8 @@ class LNDWDataset(datasets.Dataset):
         for class_ in self.viable_classes:
             self.wordnet_mapping += [
                 (
-                    f"{_namespace_uid}::{class_['class_name']}{int(class_['individual_id']):02d}",
+                    f"{_namespace_uid}::{class_['class_name']}"
+                    + f"{int(class_['individual_id']):02d}",
                     f"WordNet3.0::{class_['wordnet']}",
                 )
             ]
@@ -119,7 +120,10 @@ class LNDWDataset(datasets.Dataset):
         )
 
         if individuals:
-            label_string = f"{_namespace_uid}::{class_['class_name']}{int(class_['individual_id']):02d}"
+            label_string = (
+                f"{_namespace_uid}::{class_['class_name']}"
+                + f"{int(class_['individual_id']):02d}"
+            )
         else:
             label_string = f"{_namespace_uid}::{class_['class_name']}"
 

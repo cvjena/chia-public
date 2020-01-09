@@ -1,8 +1,4 @@
 from abc import ABC, abstractmethod
-
-from chia.data.pool import Pool
-from chia.data.sample import Sample
-
 import random
 
 
@@ -28,8 +24,10 @@ class RandomActiveLearningMethod(ActiveLearningMethod):
         ]
 
 
-from chia.methods.activelearning import distribution_activelearning
-from chia.methods.activelearning import semantic_activelearning
+from chia.methods.activelearning import (
+    distribution_activelearning,
+    semantic_activelearning,
+)  # noqa
 
 _method_mapping = {
     "Random": RandomActiveLearningMethod,

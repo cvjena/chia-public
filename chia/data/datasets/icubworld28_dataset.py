@@ -74,7 +74,8 @@ class iCubWorld28Dataset(datasets.Dataset):
                     samples += [
                         sample.Sample(
                             source=self.__class__.__name__,
-                            uid=f"{_namespace_uid}::{split}:{day}:{category}{individual}:{filename}",
+                            uid=f"{_namespace_uid}::{split}:{day}:"
+                            + f"{category}{individual}:{filename}",
                         )
                         .add_resource(
                             self.__class__.__name__,

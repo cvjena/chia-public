@@ -1,7 +1,6 @@
 import random
 import math
 import numpy as np
-import tensorflow as tf
 import pickle as pkl
 import os
 
@@ -129,12 +128,12 @@ class DFNKerasIncrementalModel(KerasIncrementalModel):
                 progress_callback(1.0)
 
     def add_to_rehearsal_pool(self, gt_resource_id, samples):
-        for sample in samples:
+        for sample_ in samples:
             self.rehearsal_pool.append(
-                sample.add_resource(
+                sample_.add_resource(
                     self.__class__.__name__,
                     "zDFN.label",
-                    sample.get_resource(gt_resource_id),
+                    sample_.get_resource(gt_resource_id),
                 )
             )
 

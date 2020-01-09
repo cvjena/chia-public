@@ -1,5 +1,4 @@
 import unittest
-import functools
 
 from chia.methods import hierarchicalclassification
 from chia import knowledge
