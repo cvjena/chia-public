@@ -218,11 +218,11 @@ class IDKEmbeddingBasedKerasHC(EmbeddingBasedKerasHC):
                 pass
 
             if not has_weights:
-                print("Building...")
                 self.fc_layer.build([None, new_weights[0].shape[0]])
 
-            print(new_weights)
             self.fc_layer.set_weights(new_weights)
 
         with open(path + "_uidtodim.pkl", "rb") as target:
             (self.uid_to_dimension,) = pickle.load(target)
+
+        self.update_embedding()
