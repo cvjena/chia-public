@@ -220,7 +220,7 @@ class iCIFARDataset(datasets.Dataset):
 
         (
             (self.train_X, self.train_y),
-            (self.test_X, self.test_y,),
+            (self.test_X, self.test_y),
         ) = tf.keras.datasets.cifar100.load_data(label_mode="fine")
 
         self.sequence_seed = 19219
