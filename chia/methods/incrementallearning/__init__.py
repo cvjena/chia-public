@@ -41,9 +41,12 @@ class ProbabilityOutputModel(IncrementalModel, ABC):
         pass
 
 
-from chia.methods.incrementallearning import keras_dfn
+from chia.methods.incrementallearning import keras_dfn, keras_fastsingleshot
 
-_method_mapping = {"keras::DFN": keras_dfn.DFNKerasIncrementalModel}
+_method_mapping = {
+    "keras::DFN": keras_dfn.DFNKerasIncrementalModel,
+    "keras::FastSingleShot": keras_fastsingleshot.FastSingleShotKerasIncrementalModel,
+}
 
 
 def methods():

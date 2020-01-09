@@ -4,11 +4,13 @@ import numpy as np
 import functools
 import math
 import pickle as pkl
+import time
+import multiprocessing
 
 from chia.methods.common import keras_dataaugmentation, keras_learningrateschedule
 from chia.methods.incrementallearning import ProbabilityOutputModel
 from chia.data.util import batches_from, batches_from_pair
-from chia.framework import configuration, instrumentation
+from chia.framework import configuration, instrumentation, ioqueue
 
 
 class KerasIncrementalModel(ProbabilityOutputModel):
@@ -182,28 +184,70 @@ class KerasIncrementalModel(ProbabilityOutputModel):
         return_samples = []
         auto_bs = self.get_auto_batchsize(samples[0].get_resource("input_img_np").shape)
 
-        for small_batch in batches_from(samples, batch_size=auto_bs):
-            image_batch = self.preprocess_image_batch(
-                self.build_image_batch(small_batch)
-            )
+        total_time_data = 0.0
+        total_time_preprocess = 0.0
+        total_time_features = 0.0
+        total_time_cls = 0.0
+        total_time_write = 0.0
+
+        def my_gen():
+            pool = multiprocessing.pool.ThreadPool(4)
+            for small_batch_ in batches_from(samples, batch_size=auto_bs):
+                built_image_batch_ = self.build_image_batch(small_batch_, pool)
+                yield small_batch_, built_image_batch_
+
+        tp_before_data = time.time()
+        faster_generator = ioqueue.make_generator_faster(
+            my_gen, method="threading", max_buffer_size=50
+        )
+        for (small_batch, built_image_batch) in faster_generator:
+            tp_before_preprocess = time.time()
+            image_batch = self.preprocess_image_batch(built_image_batch)
+            tp_before_features = time.time()
             feature_batch = self.feature_extractor(image_batch, training=False)
+            tp_before_cls = time.time()
             predictions = self.cls.predict(feature_batch)
+            tp_before_write = time.time()
             return_samples += [
                 sample.add_resource(
                     self.__class__.__name__, prediction_resource_id, prediction
                 )
                 for prediction, sample in zip(predictions, small_batch)
             ]
+            tp_loop_done = time.time()
+            total_time_data += tp_before_preprocess - tp_before_data
+            total_time_preprocess += tp_before_features - tp_before_preprocess
+            total_time_features += tp_before_cls - tp_before_features
+            total_time_cls += tp_before_write - tp_before_cls
+            total_time_write += tp_loop_done - tp_before_write
+
+            tp_before_data = time.time()
+
+        print("Predict done.")
+        print(f"Time (data): {total_time_data}")
+        print(f"Time (preprocess): {total_time_preprocess}")
+        print(f"Time (features): {total_time_features}")
+        print(f"Time (cls): {total_time_cls}")
+        print(f"Time (write): {total_time_write}")
+        print(
+            f"Total time: {total_time_data + total_time_preprocess + total_time_features + total_time_cls + total_time_write}"
+        )
         return return_samples
 
     def predict_probabilities(self, samples, prediction_dist_resource_id):
         return_samples = []
         auto_bs = self.get_auto_batchsize(samples[0].get_resource("input_img_np").shape)
 
-        for small_batch in batches_from(samples, batch_size=auto_bs):
-            image_batch = self.preprocess_image_batch(
-                self.build_image_batch(small_batch)
-            )
+        def my_gen():
+            pool = multiprocessing.pool.ThreadPool(4)
+            for small_batch_ in batches_from(samples, batch_size=auto_bs):
+                built_image_batch_ = self.build_image_batch(small_batch_, pool)
+                yield small_batch_, built_image_batch_
+
+        for small_batch, built_image_batch in ioqueue.make_generator_faster(
+            my_gen, method="synchronous", max_buffer_size=5
+        ):
+            image_batch = self.preprocess_image_batch(built_image_batch)
             feature_batch = self.feature_extractor(image_batch, training=False)
             predictions = self.cls.predict_dist(feature_batch)
             return_samples += [
@@ -228,11 +272,13 @@ class KerasIncrementalModel(ProbabilityOutputModel):
         self.restore_inner(path)
         self.cls.restore(path)
 
-    def build_image_batch(self, samples):
+    def build_image_batch(self, samples, pool=None):
         assert len(samples) > 0
-        return np.stack(
-            [sample.get_resource("input_img_np") for sample in samples], axis=0
-        )
+        if pool is not None:
+            np_images = pool.map(_get_input_img_np, samples)
+        else:
+            np_images = [sample.get_resource("input_img_np") for sample in samples]
+        return np.stack(np_images, axis=0)
 
     def preprocess_image_batch(self, image_batch, processing_fn=None):
         if processing_fn is not None:
@@ -336,3 +382,7 @@ class KerasIncrementalModel(ProbabilityOutputModel):
 
         self.current_step += 1
         return acc_hc_loss / float(inner_batch_count)
+
+
+def _get_input_img_np(sample):
+    return sample.get_resource("input_img_np")
