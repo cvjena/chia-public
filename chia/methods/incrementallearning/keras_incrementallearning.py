@@ -137,6 +137,15 @@ class KerasIncrementalModel(ProbabilityOutputModel):
             )
         self.augmentation = keras_dataaugmentation.KerasDataAugmentation()
 
+        if (
+            self.use_pretrained_weights is not None
+            and self.use_pretrained_weights != "ILSVRC2012"
+        ):
+            print(
+                f"Loading alternative pretrained weights {self.use_pretrained_weights}"
+            )
+            self.feature_extractor.load_weights(self.use_pretrained_weights)
+
         if not self.do_train_feature_extractor:
             for layer in self.feature_extractor.layers:
                 layer.trainable = False
