@@ -25,13 +25,14 @@ class KerasIncrementalModel(ProbabilityOutputModel):
         self.cls = cls
 
         with configuration.ConfigurationContext("KerasIncrementalModel"):
-            self.do_train_feature_extractor = configuration.get(
-                "train_feature_extractor", False
-            )
-            self.use_pretrained_weights = configuration.get(
-                "use_pretrained_weights", "ILSVRC2012"
-            )
+            # Preprocessing
             self.random_crop_to_size = configuration.get("random_crop_to_size", None)
+            _channel_mean = configuration.get("channel_mean", [127.5, 127.5, 127.5])
+            self.channel_mean_normalized = np.array(_channel_mean) / 255.0
+            _channel_stddev = configuration.get("channel_stddev", [127.5, 127.5, 127.5])
+            self.channel_stddev_normalized = np.array(_channel_stddev) / 255.0
+
+            # Batch size
             self.batchsize_max = configuration.get("batchsize_max", 256)
             self.batchsize_min = configuration.get("batchsize_min", 1)
             self.sequential_training_batches = configuration.get(
@@ -41,7 +42,18 @@ class KerasIncrementalModel(ProbabilityOutputModel):
                 "autobs_vram", configuration.get_system("gpu0_vram")
             )
 
+            # Fine-tuning options
+            self.do_train_feature_extractor = configuration.get(
+                "train_feature_extractor", False
+            )
+            self.use_pretrained_weights = configuration.get(
+                "use_pretrained_weights", "ILSVRC2012"
+            )
+
+            # Architecture
             self.architecture = configuration.get("architecture", "keras::ResNet50V2")
+
+            # Optimization and regularization
             self.l2_regularization = configuration.get("l2_regularization", 5e-5)
             self.optimizer_name = configuration.get("optimizer", "adam")
             if self.optimizer_name == "sgd":
@@ -308,13 +320,14 @@ class KerasIncrementalModel(ProbabilityOutputModel):
         return np.stack(np_images, axis=0)
 
     def preprocess_image_batch(self, image_batch, is_training, processing_fn=None):
+        image_batch = tf.cast(image_batch, dtype=tf.float32) / 255.0
         if processing_fn is not None:
-            image_batch = tf.cast(image_batch, dtype=tf.float32) / 255.0
+            # Processing_fn expects values in [0, 1]
             image_batch = processing_fn(image_batch)
-            image_batch = (2.0 * image_batch) - 1.0
-        else:
-            image_batch = tf.cast(image_batch, dtype=tf.float32)
-            image_batch = (image_batch / 127.5) - 1.0
+
+        # Map to correct range, e.g. [-1.0 , 1.0]
+        image_batch = image_batch - self.channel_mean_normalized
+        image_batch = image_batch / self.channel_stddev_normalized
 
         # Do cropping here instead of in augmentation because all augmentation is
         # disabled during testing...
