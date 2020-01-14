@@ -18,6 +18,7 @@ def main():
     # General config
     ilm_method = configuration.get("ilm_method", no_default=True)
     cls_method = configuration.get("cls_method", no_default=True)
+    interaction_method = configuration.get("interaction_method", no_default=True)
     experiment_scale = configuration.get("experiment_scale", no_default=True)
     dataset_name = configuration.get("dataset", no_default=True)
     experiment_name = configuration.get("experiment_name", no_default=True)
@@ -92,7 +93,6 @@ def main():
 
             # Build methods
             kb = knowledge.KnowledgeBase()
-            im = interaction.OracleInteractionMethod()
 
             if restore_path is not None:
                 kb.restore(restore_path)
@@ -109,6 +109,7 @@ def main():
                     sources=[dataset.relation("hypernymy"), wna],
                 )
 
+            im = interaction.method(interaction_method, kb)
             cls = hierarchicalclassification.method(cls_method, kb)
             ilm = incrementallearning.method(ilm_method, cls)
 

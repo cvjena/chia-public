@@ -27,6 +27,7 @@ def main():
     # General config
     ilm_method = configuration.get("ilm_method", no_default=True)
     cls_method = configuration.get("cls_method", no_default=True)
+    interaction_method = configuration.get("interaction_method", no_default=True)
     al_method = configuration.get("al_method", no_default=True)
     experiment_scale = configuration.get("experiment_scale", no_default=True)
     label_budget = configuration.get("label_budget", no_default=True)
@@ -105,7 +106,6 @@ def main():
 
             # Build methods
             kb = knowledge.KnowledgeBase()
-            im = interaction.OracleInteractionMethod()
 
             # Add hierarchy
             wna = wordnet.WordNetAccess()
@@ -118,6 +118,8 @@ def main():
                 explore_right=True,
                 sources=[dataset.relation("hypernymy"), wna],
             )
+
+            im = interaction.method(interaction_method, kb)
             cls = hierarchicalclassification.method(cls_method, kb)
             ilm = incrementallearning.method(ilm_method, cls)
             alm = activelearning.method(al_method, ilm, kb)
