@@ -1,7 +1,9 @@
 import abc
-import time
-import random
 import json
+import random
+import time
+
+from chia.framework import configuration
 
 _current_context = None
 
@@ -165,19 +167,38 @@ class PrintObserver(InstrumentationObserver):
 
 
 class JSONResultObserver(InstrumentationObserver):
+    def __init__(self, prefix=""):
+        super().__init__(prefix)
+        self._intermediate_results = []
+
     def report(self, metric, value, steps, contexts):
-        pass
+        self._intermediate_results += [
+            {"metric": metric, "value": value, "contexts": contexts, "steps": steps}
+        ]
 
     def on_context_exit(self, stored_result, run_id, stored_exception):
-        if stored_result is not None:
-            try:
-                output = json.dumps(stored_result, indent=2)
-            except Exception:
-                output = str(stored_result)
+        config_dump = {
+            "custom": configuration.dump_custom_dict(),
+            "default": configuration.dump_default_dict(),
+        }
 
-            try:
-                fname = f"storedresult-{self._prefix}-{run_id}.json"
-                with open(fname, "w") as target:
-                    target.write(output)
-            except Exception:
-                print("WARNING: Could not store result: {str(ex}")
+        result_dict = {
+            "prefix": self._prefix,
+            "run_id": run_id,
+            "stored_result": stored_result,
+            "configuration": config_dump,
+            "intermediate_results": self._intermediate_results,
+            "stored_exception": str(stored_exception),
+        }
+
+        try:
+            output = json.dumps(result_dict, indent=2)
+        except Exception:
+            output = str(result_dict)
+
+        try:
+            fname = f"storedresult-{self._prefix}-{run_id}.json"
+            with open(fname, "w") as target:
+                target.write(output)
+        except Exception:
+            print("WARNING: Could not store result: {str(ex}")
