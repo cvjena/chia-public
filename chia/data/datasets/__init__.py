@@ -38,14 +38,14 @@ class Dataset(abc.ABC):
         pass
 
 
-from chia.data.datasets import (
+from chia.data.datasets import (  # noqa isort:skip
     core50_dataset,
     icifar_dataset,
     icubworld28_dataset,
     ilsvrc2012_dataset,
     lndw_dataset,
     nabirds_dataset,
-)  # noqa
+)
 
 
 _dataset_mapping = {

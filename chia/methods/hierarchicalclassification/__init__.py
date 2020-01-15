@@ -1,4 +1,4 @@
-from chia.methods.hierarchicalclassification import keras_onehot_hc, keras_idk_hc
+from chia.methods.hierarchicalclassification import keras_idk_hc, keras_onehot_hc
 
 _method_mapping = {
     "keras::OneHot": keras_onehot_hc.OneHotEmbeddingBasedKerasHC,

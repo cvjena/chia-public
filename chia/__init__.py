@@ -1,4 +1,5 @@
 import os
+
 from chia.framework import configuration
 
 print("This is CHIA: Concept Hierarchies for Incremental and Active Learning")

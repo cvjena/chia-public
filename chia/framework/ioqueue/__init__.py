@@ -1,7 +1,7 @@
-import time
-import threading
 import multiprocessing
 import queue
+import threading
+import time
 
 
 def make_generator_faster(gen, method, max_buffer_size=100):

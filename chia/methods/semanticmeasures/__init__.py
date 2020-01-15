@@ -1,5 +1,5 @@
-from networkx.algorithms import shortest_paths
 import networkx as nx
+from networkx.algorithms import shortest_paths
 
 
 class SemanticMeasure:
