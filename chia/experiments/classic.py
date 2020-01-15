@@ -25,7 +25,11 @@ def main():
     report_interval = configuration.get("report_interval", no_default=True)
     report_initially = configuration.get("report_initially", no_default=True)
     validation_scale = configuration.get("validation_scale", no_default=True)
+    skip_reclassification = configuration.get("skip_reclassification", no_default=True)
     evaluators = configuration.get("evaluators", no_default=True)
+
+    # KB specific stuff
+    observe_gt_concepts = configuration.get("observe_gt_concepts", no_default=True)
 
     # Save and restore
     restore_path = configuration.get("restore_path", no_default=True)
@@ -132,10 +136,18 @@ def main():
             train_pool_size = len(train_pool)
             instrumentation.report("train_pool_size", train_pool_size)
 
+            if observe_gt_concepts:
+                kb.observe_concepts(
+                    [sample.get_resource(label_gt_resource_id) for sample in train_pool]
+                )
+
             # Run "interaction"
             labeled_pool = im.query_annotations_for(
                 train_pool, label_gt_resource_id, label_ann_resource_id
             )
+
+            labeled_pool_size = len(labeled_pool)
+            instrumentation.report("labeled_pool_size", labeled_pool_size)
 
             if report_initially:
                 next_progress = 0.0
@@ -151,31 +163,34 @@ def main():
                         next_progress += report_interval
 
                 # Quick reclass accuracy
-                with instrumentation.InstrumentationContext(
-                    "reclassification", take_time=True
-                ):
-                    instrumentation.update_local_step(0)
-                    if validation_scale < 1.0:
-                        reclass_pool = labeled_pool[
-                            : min(
-                                max(
-                                    1,
-                                    int(
-                                        math.ceil(len(labeled_pool) * validation_scale)
+                if not skip_reclassification:
+                    with instrumentation.InstrumentationContext(
+                        "reclassification", take_time=True
+                    ):
+                        instrumentation.update_local_step(0)
+                        if validation_scale < 1.0:
+                            reclass_pool = labeled_pool[
+                                : min(
+                                    max(
+                                        1,
+                                        int(
+                                            math.ceil(
+                                                len(labeled_pool) * validation_scale
+                                            )
+                                        ),
                                     ),
-                                ),
-                                len(labeled_pool),
-                            )
-                        ]
-                    else:
-                        reclass_pool = labeled_pool
-                    evaluator.update(
-                        ilm.predict(reclass_pool, label_pred_resource_id),
-                        label_ann_resource_id,
-                        label_pred_resource_id,
-                    )
-                    instrumentation.report_dict(evaluator.result())
-                    evaluator.reset()
+                                    len(labeled_pool),
+                                )
+                            ]
+                        else:
+                            reclass_pool = labeled_pool
+                        evaluator.update(
+                            ilm.predict(reclass_pool, label_pred_resource_id),
+                            label_ann_resource_id,
+                            label_pred_resource_id,
+                        )
+                        instrumentation.report_dict(evaluator.result())
+                        evaluator.reset()
 
                 # Validation
                 with instrumentation.InstrumentationContext(
@@ -200,12 +215,13 @@ def main():
             with instrumentation.InstrumentationContext("training", take_time=True):
 
                 # Learn the thing
-                kb.observe_concepts(
-                    [
-                        sample.get_resource(label_ann_resource_id)
-                        for sample in labeled_pool
-                    ]
-                )
+                if not observe_gt_concepts:
+                    kb.observe_concepts(
+                        [
+                            sample.get_resource(label_ann_resource_id)
+                            for sample in labeled_pool
+                        ]
+                    )
                 ilm.observe(
                     labeled_pool,
                     label_ann_resource_id,

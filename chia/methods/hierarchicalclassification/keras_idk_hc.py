@@ -174,8 +174,15 @@ class IDKEmbeddingBasedKerasHC(EmbeddingBasedKerasHC):
                     loss_mask[i, self.uid_to_dimension[successor]] = 1.0
                     # This should also cover the node itself, but we do it anyway
 
-            for successor in self.graph.successors(label):
-                loss_mask[i, self.uid_to_dimension[successor]] = 1.0
+            if not self._mlnp:
+                # Learn direct successors in order to "stop"
+                # prediction at these nodes.
+                # If MLNP is active, then this can be ignored.
+                # Because we never want to predict
+                # inner nodes, we interpret labels at
+                # inner nodes as imprecise labels.
+                for successor in self.graph.successors(label):
+                    loss_mask[i, self.uid_to_dimension[successor]] = 1.0
 
         embedding = self.embed(ground_truth)
         prediction = self.predict_embedded(feature_batch)
