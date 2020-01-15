@@ -1,7 +1,5 @@
 from abc import ABC, abstractmethod
 
-from chia.methods.interaction import noisy_oracle_interaction  # noqa
-
 
 class InteractionMethod(ABC):
     def __init__(self, kb=None):
@@ -23,6 +21,8 @@ class OracleInteractionMethod(InteractionMethod):
             for sample in samples
         ]
 
+
+from chia.methods.interaction import noisy_oracle_interaction  # noqa isort:skip
 
 _method_mapping = {
     "Oracle": OracleInteractionMethod,
