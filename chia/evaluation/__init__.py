@@ -1,7 +1,5 @@
 from abc import ABC, abstractmethod
 
-from . import hierarchical  # noqa
-
 
 class Evaluator(ABC):
     @abstractmethod
@@ -59,6 +57,8 @@ class AccuracyEvaluator(Evaluator):
     def result(self):
         return {"accuracy": float(self.correct_count) / float(self.sample_count)}
 
+
+from . import hierarchical  # noqa isort:skip
 
 _method_mapping = {
     "Accuracy": AccuracyEvaluator,
