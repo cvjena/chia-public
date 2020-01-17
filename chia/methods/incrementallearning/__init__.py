@@ -1,10 +1,5 @@
 from abc import ABC, abstractmethod
 
-from chia.methods.incrementallearning import (  # noqa isort:skip
-    keras_dfn,
-    keras_fastsingleshot,
-)
-
 
 class IncrementalModel(ABC):
     @abstractmethod
@@ -45,6 +40,11 @@ class ProbabilityOutputModel(IncrementalModel, ABC):
     def predict_probabilities(self, samples, prediction_dist_resource_id):
         pass
 
+
+from chia.methods.incrementallearning import (  # noqa isort:skip
+    keras_dfn,
+    keras_fastsingleshot,
+)
 
 _method_mapping = {
     "keras::DFN": keras_dfn.DFNKerasIncrementalModel,
