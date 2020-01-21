@@ -80,6 +80,8 @@ class NoisyOracleInteractionMethod(interaction.InteractionMethod):
 
     def query_annotations_for(self, samples, gt_resource_id, ann_resource_id):
         self._maybe_update_graphs()
+
+        # Add noise
         noisy_samples = [
             sample.add_resource(
                 self.__class__.__name__,
@@ -89,6 +91,7 @@ class NoisyOracleInteractionMethod(interaction.InteractionMethod):
             for sample in samples
         ]
 
+        # Filter imprecise samples
         return [
             sample
             for sample in noisy_samples
@@ -96,6 +99,7 @@ class NoisyOracleInteractionMethod(interaction.InteractionMethod):
         ]
 
     def apply_noise(self, uid):
+        # Select noise model
         if self.noise_model == "Deng2014":
             noisy_uid = self._apply_deng_noise(uid)
         elif self.noise_model == "Geometric":
@@ -104,6 +108,11 @@ class NoisyOracleInteractionMethod(interaction.InteractionMethod):
             noisy_uid = self._apply_poisson_noise(uid)
         else:
             raise ValueError(f"Unknown noise model {self.noise_model}")
+
+        # Project to random leaf
+        if self.project_to_random_leaf:
+            noisy_uid = self._project_to_random_leaf(noisy_uid)
+
         print(f"Noise: {uid:20} -> {noisy_uid:20}")
         return noisy_uid
 
