@@ -26,6 +26,9 @@ class NoisyOracleInteractionMethod(interaction.InteractionMethod):
                 raise ValueError(f"Unknown noise model: {self.noise_model}")
 
             self.filter_imprecise = configuration.get("filter_imprecise", False)
+            self.project_to_random_leaf = configuration.get(
+                "project_to_random_leaf", False
+            )
 
         self.last_concept_stamp = -1
         self.graph: Optional[nx.DiGraph] = None
@@ -52,6 +55,20 @@ class NoisyOracleInteractionMethod(interaction.InteractionMethod):
         path_to_label = nx.shortest_path(self.graph, self.root, uid)
         final_depth = max(0, min(len(path_to_label) - 1, depth_target))
         return path_to_label[final_depth]
+
+    def _project_to_random_leaf(self, uid):
+        if self.graph.out_degree(uid) == 0:  # noqa
+            return uid
+        else:
+            # List all descendants
+            all_descendants = nx.descendants(self.graph, uid)
+
+            # Use only leaves
+            valid_descendants = list(
+                filter(lambda n: self.graph.out_degree(n) == 0, all_descendants)  # noqa
+            )
+
+            return np.random.choice(valid_descendants)
 
     def _maybe_update_graphs(self):
         kb: knowledge.KnowledgeBase = self._kb
