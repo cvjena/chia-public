@@ -34,6 +34,9 @@ def main():
     # Save and restore
     restore_path = configuration.get("restore_path", no_default=True)
     save_path = configuration.get("save_path", no_default=True)
+    save_path_append_run_number = configuration.get(
+        "save_path_append_run_number", no_default=True
+    )
 
     # Eval config
     use_sacred_observer = configuration.get("use_sacred_observer", no_default=True)
@@ -230,10 +233,14 @@ def main():
 
             results_across_runs += [evaluate()]
 
+            if save_path is not None and save_path_append_run_number:
+                kb.save(f"{save_path}-{run_id}")
+                ilm.save(f"{save_path}-{run_id}")
+
         instrumentation.store_result(results_across_runs)
 
-        # Save
-        if save_path is not None:
+        # Save last model
+        if save_path is not None and not save_path_append_run_number:
             kb.save(save_path)
             ilm.save(save_path)
 
