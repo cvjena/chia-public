@@ -263,7 +263,7 @@ def main_context(config_sources=None):
 
                 # Check access counter
                 for key, value_dict in _config_dict.items():
-                    if value_dict["access_ctr"] == 0:
+                    if value_dict["access_ctr"] == 0 and not str(key).endswith("_tag"):
                         print(f"WARNING: configuration entry {key} unused.")
 
                 if the_ex is not None:
