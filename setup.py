@@ -8,6 +8,7 @@ setup(
     install_requires=[
         "pillow~=6.2",
         "tensorflow~=2.0",
+        "tensorflow-addons~=0.6",
         "networkx~=2.3",
         "gputil~=1.4",
         "scikit-learn~=0.21",
