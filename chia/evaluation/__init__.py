@@ -58,11 +58,12 @@ class AccuracyEvaluator(Evaluator):
         return {"accuracy": float(self.correct_count) / float(self.sample_count)}
 
 
-from . import hierarchical  # noqa isort:skip
+from . import hierarchical, topk_accuracy  # noqa isort:skip
 
 _method_mapping = {
     "Accuracy": AccuracyEvaluator,
     "Hierarchical": hierarchical.HierarchicalEvaluator,
+    "TopKAccuracy": topk_accuracy.TopKAccuracyEvaluator,
 }
 
 
