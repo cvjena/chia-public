@@ -5,13 +5,14 @@ from . import RelationSource
 
 class WordNetAccess(RelationSource):
     def __init__(self):
+        from nltk.corpus import wordnet
+
         try:
-            from nltk.corpus import wordnet
+            wordnet.synset("dog.n.01")
         except LookupError:
             import nltk
 
             nltk.download("wordnet")
-            from nltk.corpus import wordnet
 
         self.wordnet = wordnet
 
