@@ -15,7 +15,6 @@ class HierarchicalEvaluator(Evaluator):
 
     def update(self, samples, gt_resource_id, prediction_resource_id):
         for sample in iter(samples):
-            self.sample_count += 1
             gt_uid = sample.get_resource(gt_resource_id)
             pred_uid = sample.get_resource(prediction_resource_id)
             ugraph = self.kb.all_relations["hypernymy"]["ugraph"]
