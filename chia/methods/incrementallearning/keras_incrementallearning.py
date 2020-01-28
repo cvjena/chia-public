@@ -6,7 +6,13 @@ import time
 from abc import abstractmethod
 
 import numpy as np
+
 import tensorflow as tf
+from chia.data.util import batches_from, batches_from_pair
+from chia.framework import configuration, instrumentation, ioqueue
+from chia.methods.common import keras_dataaugmentation, keras_learningrateschedule
+from chia.methods.hierarchicalclassification import keras_hierarchicalclassification
+from chia.methods.incrementallearning import ProbabilityOutputModel
 from tensorflow.keras.applications import (
     inception_resnet_v2,
     mobilenet_v2,
@@ -14,14 +20,11 @@ from tensorflow.keras.applications import (
     resnet_v2,
 )
 
-from chia.data.util import batches_from, batches_from_pair
-from chia.framework import configuration, instrumentation, ioqueue
-from chia.methods.common import keras_dataaugmentation, keras_learningrateschedule
-from chia.methods.incrementallearning import ProbabilityOutputModel
-
 
 class KerasIncrementalModel(ProbabilityOutputModel):
-    def __init__(self, cls):
+    def __init__(
+        self, cls: keras_hierarchicalclassification.KerasHierarchicalClassifier
+    ):
         self.cls = cls
 
         with configuration.ConfigurationContext("KerasIncrementalModel"):
@@ -238,13 +241,24 @@ class KerasIncrementalModel(ProbabilityOutputModel):
             tp_before_features = time.time()
             feature_batch = self.feature_extractor(image_batch, training=False)
             tp_before_cls = time.time()
-            predictions = self.cls.predict(feature_batch)
+            predictions_dist = self.cls.predict_dist(feature_batch)
+            predictions = [
+                sorted(prediction_dist, key=lambda x: x[1], reverse=True)[0][0]
+                for prediction_dist in predictions_dist
+            ]
+
             tp_before_write = time.time()
             return_samples += [
                 sample.add_resource(
                     self.__class__.__name__, prediction_resource_id, prediction
+                ).add_resource(
+                    self.__class__.__name__,
+                    prediction_resource_id + "_dist",
+                    prediction_dist,
                 )
-                for prediction, sample in zip(predictions, small_batch)
+                for prediction, prediction_dist, sample in zip(
+                    predictions, predictions_dist, small_batch
+                )
             ]
             tp_loop_done = time.time()
             total_time_data += tp_before_preprocess - tp_before_data

@@ -3,10 +3,6 @@ from abc import ABC, abstractmethod
 
 class KerasHierarchicalClassifier(ABC):
     @abstractmethod
-    def predict(self, feature_batch):
-        pass
-
-    @abstractmethod
     def predict_dist(self, feature_batch):
         pass
 
@@ -56,21 +52,9 @@ class EmbeddingBasedKerasHC(KerasHierarchicalClassifier, ABC):
     def update_embedding(self):
         pass
 
-    def predict(self, feature_batch):
-        embedded_predictions = self.predict_embedded(feature_batch).numpy()
-        return self.deembed(embedded_predictions)
-
     def predict_dist(self, feature_batch):
         embedded_predictions = self.predict_embedded(feature_batch).numpy()
         return self.deembed_dist(embedded_predictions)
-
-    def deembed(self, embedded_labels):
-        labels = []
-        label_dists = self.deembed_dist(embedded_labels)
-        for label_dist in label_dists:
-            maxlabel = sorted(label_dist, key=lambda ld: ld[1], reverse=True)[0][0]
-            labels.append(maxlabel)
-        return labels
 
     def maybe_update_embedding(self):
         if self.kb.get_concept_stamp() != self.last_observed_concept_stamp:
