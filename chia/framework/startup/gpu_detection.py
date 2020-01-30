@@ -9,6 +9,16 @@ def startup_fn():
         import math
         import os
 
+        # Disable GPUS if desired
+        if "CHIA_CPU_ONLY" in os.environ.keys():
+            if os.environ["CHIA_CPU_ONLY"] == "1":
+                print(
+                    "Requested CPU only operation."
+                    "Disabling all GPUS via environment variable."
+                )
+                os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+                raise ValueError("Requested CPU-only operation.")
+
         gpus = GPUtil.getGPUs()
         if "CUDA_VISIBLE_DEVICES" in os.environ.keys():
             cuda_filter = os.environ["CUDA_VISIBLE_DEVICES"].split(",")
@@ -30,9 +40,10 @@ def startup_fn():
             print("Only one GPU is supported right now.")
             return False
 
-        assert (
-            len(available_gpus) > 0
-        ), "Need an available GPU to calculate available VRAM."
+        if len(available_gpus) < 1:
+            print("Need an available GPU!")
+            return False
+
         gpu = available_gpus[0]
         configuration.set_system("gpu0_vram", math.trunc(gpu.memoryTotal / 102.4) / 10)
 

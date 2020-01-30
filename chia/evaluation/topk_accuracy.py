@@ -1,6 +1,6 @@
 import numpy as np
 
-from chia import configuration
+from chia.framework import configuration
 
 from . import Evaluator
 

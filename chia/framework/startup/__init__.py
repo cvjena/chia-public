@@ -12,3 +12,6 @@ def startup():
         if not retval:
             print("Startup failed. Quitting.")
             quit(-1)
+
+    print("Startup complete.")
+    print()

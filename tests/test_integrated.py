@@ -1,10 +1,6 @@
-import os
 import unittest
 
-from chia import configuration
-
-os.environ["CUDA_VISIBLE_DEVICES"] = ""
-print("Turned off cuda.")
+from chia.framework import configuration
 
 
 class IntegratedTestCase(unittest.TestCase):
