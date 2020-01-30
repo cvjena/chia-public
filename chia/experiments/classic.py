@@ -3,7 +3,6 @@ import math
 from chia import evaluation, knowledge
 from chia.data import datasets, pool
 from chia.framework import configuration, instrumentation
-from chia.framework.instrumentation import sacred_instrumentation
 from chia.knowledge import wordnet
 from chia.methods import hierarchicalclassification, incrementallearning, interaction
 
@@ -54,6 +53,8 @@ def main():
         instrumentation.JSONResultObserver(experiment_name),
     ]
     if use_sacred_observer:
+        from chia.framework.instrumentation import sacred_instrumentation
+
         instrumentation_observers += [
             sacred_instrumentation.SacredObserver(experiment_name)
         ]
