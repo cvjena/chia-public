@@ -3,6 +3,7 @@ import os
 import numpy as np
 from PIL import Image
 
+from chia import knowledge
 from chia.data import datasets, sample
 from chia.framework import configuration, robustness
 
@@ -2978,3 +2979,6 @@ class ILSVRC2012Dataset(datasets.Dataset):
         if im.mode != "RGB":
             im = im.convert("RGB")
         return np.asarray(im)
+
+    def get_hypernymy_relation_source(self):
+        return knowledge.StaticRelationSource([])
