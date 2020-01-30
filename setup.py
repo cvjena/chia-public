@@ -19,6 +19,7 @@ setup(
         "scipy~=1.3",
         "nltk~=3.4",
         "pyqt5==5.9",
+        "sacred~=0.8",
     ],
     # metadata to display on PyPI
     author="Clemens-Alexander Brust",
