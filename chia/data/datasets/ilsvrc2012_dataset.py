@@ -2878,9 +2878,7 @@ _leaf_synsets = [
 class ILSVRC2012Dataset(datasets.Dataset):
     def __init__(self):
         with configuration.ConfigurationContext(self.__class__.__name__):
-            self.base_path = configuration.get(
-                "base_path", "/home/datasets/ILSVRC2012/unpacked"
-            )
+            self.base_path = configuration.get_system("ILSVRC2012Dataset.base_path")
             self.side_length = configuration.get("side_length", 224)
             self.use_lazy_mode = configuration.get("use_lazy_mode", True)
 

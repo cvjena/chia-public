@@ -67,9 +67,7 @@ _labels_to_wordnet = [
 class CORe50Dataset(datasets.Dataset):
     def __init__(self):
         with configuration.ConfigurationContext(self.__class__.__name__):
-            self.base_path = configuration.get(
-                "base_path", "/home/brust/datasets/core50"
-            )
+            self.base_path = configuration.get_system("CORE50Dataset.base_path")
 
         self.imgs = np.load(
             os.path.join(self.base_path, "core50_imgs.npy"), mmap_mode="r"

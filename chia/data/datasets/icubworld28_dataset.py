@@ -22,9 +22,7 @@ _icubworld28_labels_to_wordnet = [
 class iCubWorld28Dataset(datasets.Dataset):
     def __init__(self):
         with configuration.ConfigurationContext(self.__class__.__name__):
-            self.base_path = configuration.get(
-                "base_path", "/home/brust/datasets/icubworld28"
-            )
+            self.base_path = configuration.get_system("iCubWorld28Dataset.base_path")
 
     def setup(self, **kwargs):
         pass

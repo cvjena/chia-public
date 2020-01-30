@@ -14,9 +14,7 @@ _namespace_uid = "LNDW"
 class LNDWDataset(datasets.Dataset):
     def __init__(self):
         with configuration.ConfigurationContext("LNDWDataset"):
-            self.base_path = configuration.get(
-                "base_path", "/home/brust/datasets/lndw/dataset"
-            )
+            self.base_path = configuration.get_system("LNDWDataset.base_path")
             self.side_length = configuration.get("side_length", 224)
             self._viability_threshold = configuration.get("viability_threshold", 3.0)
 

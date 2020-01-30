@@ -2,7 +2,7 @@ import time
 
 from PIL import Image
 
-from chia import configuration
+from chia.framework import configuration
 
 
 class NetworkResistantImage:

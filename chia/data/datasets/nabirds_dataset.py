@@ -13,7 +13,7 @@ _namespace_uid = "NABirds"
 class NABirdsDataset(datasets.Dataset):
     def __init__(self):
         with configuration.ConfigurationContext(self.__class__.__name__):
-            self.base_path = configuration.get("base_path", "/home/datasets/nabirds")
+            self.base_path = configuration.get_system("NABirdsDataset.base_path")
             self.side_length = configuration.get("side_length", 224)
             self.use_lazy_mode = configuration.get("use_lazy_mode", True)
 
