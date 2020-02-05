@@ -11,6 +11,8 @@ def make_generator_faster(gen, method, max_buffer_size=100):
         return make_generator_faster_multiprocessing(gen, max_buffer_size)
     elif method == "synchronous":
         return gen()
+    else:
+        raise ValueError(f"Unknown method {method}")
 
 
 def make_generator_faster_threading(gen, max_buffer_size=100):
