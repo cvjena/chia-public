@@ -43,6 +43,7 @@ from chia.data.datasets import (  # noqa isort:skip
     icifar_dataset,
     icubworld28_dataset,
     ilsvrc2012_dataset,
+    inaturalist2018_dataset,
     lndw_dataset,
     nabirds_dataset,
 )
@@ -53,6 +54,7 @@ _dataset_mapping = {
     "iCIFAR": icifar_dataset.iCIFARDataset,
     "iCubWorld28": icubworld28_dataset.iCubWorld28Dataset,
     "ILSVRC2012": ilsvrc2012_dataset.ILSVRC2012Dataset,
+    "iNaturalist2018": inaturalist2018_dataset.iNaturalist2018Dataset,
     "LNdW": lndw_dataset.LNDWDataset,
     "NABirds": nabirds_dataset.NABirdsDataset,
 }
