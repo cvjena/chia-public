@@ -22,7 +22,7 @@ class NABirdsDataset(datasets.Dataset):
             tuples = [x.split(sep=" ", maxsplit=1) for x in lines]
             tuples = [(int(k), str(v)) for (k, v) in tuples]
 
-            self.nabirds_id_to_label = {
+            self.uid_for_label_id = {
                 k: f"{_namespace_uid}::{int(k):03d}{v}" for (k, v) in tuples
             }
 
@@ -37,16 +37,25 @@ class NABirdsDataset(datasets.Dataset):
                 with open(os.path.join(self.base_path, "images.txt")) as iid:
                     lablines = [x.strip() for x in lab]
                     labtuples = [x.split(sep=" ", maxsplit=1) for x in lablines]
-                    labtuples = [(str(k), int(v)) for (k, v) in labtuples]
+                    labtuples = [
+                        (str(some_primary_key), int(label))
+                        for (some_primary_key, label) in labtuples
+                    ]
 
                     ttslines = [x.strip() for x in tts]
                     ttstuples = [x.split(sep=" ", maxsplit=1) for x in ttslines]
-                    ttstuples = [(str(k), int(v)) for (k, v) in ttstuples]
+                    ttstuples = [
+                        (str(some_primary_key), int(is_train_or_test))
+                        for (some_primary_key, is_train_or_test) in ttstuples
+                    ]
 
                     iidlines = [x.strip() for x in iid]
                     iidtuples = [x.split(sep=" ", maxsplit=1) for x in iidlines]
-                    iidtuples = [(str(k), str(v)) for (k, v) in iidtuples]
-                    self.iid_dict = {k: v for (k, v) in iidtuples}
+                    iidtuples = [
+                        (str(some_primary_key), str(image_path))
+                        for (some_primary_key, image_path) in iidtuples
+                    ]
+                    self.image_location_for_image_id = {k: v for (k, v) in iidtuples}
 
                     combinedtuples = [a + b for (a, b) in zip(labtuples, ttstuples)]
                     mismatches = [a != c for (a, b, c, d) in combinedtuples]
@@ -67,7 +76,7 @@ class NABirdsDataset(datasets.Dataset):
             lines = [x.strip() for x in hie]
             tuples = [x.split(sep=" ", maxsplit=1) for x in lines]
             self.tuples = [
-                (self.nabirds_id_to_label[int(k)], self.nabirds_id_to_label[int(v)])
+                (self.uid_for_label_id[int(k)], self.uid_for_label_id[int(v)])
                 for (k, v) in tuples
             ]
 
@@ -102,29 +111,29 @@ class NABirdsDataset(datasets.Dataset):
 
     def get_train_pool(self, label_resource_id):
         return [
-            self._build_sample(image, id, label_resource_id, "train")
-            for image, id in self._nabirds_training_tuples
+            self._build_sample(image_id, label_id, label_resource_id, "train")
+            for image_id, label_id in self._nabirds_training_tuples
         ]
 
     def get_test_pool(self, label_resource_id):
         return [
-            self._build_sample(image, id, label_resource_id, "test")
-            for image, id in self._nabirds_validation_tuples
+            self._build_sample(image_id, label_id, label_resource_id, "test")
+            for image_id, label_id in self._nabirds_validation_tuples
         ]
 
     def _build_sample(self, image_id, label_id, label_resource_id, split):
         sample_ = sample.Sample(
             source=self.__class__.__name__, uid=f"{_namespace_uid}::{split}:{image_id}"
         ).add_resource(
-            self.__class__.__name__,
-            label_resource_id,
-            self.nabirds_id_to_label[label_id],
+            self.__class__.__name__, label_resource_id, self.uid_for_label_id[label_id],
         )
         if self.use_lazy_mode:
             sample_ = sample_.add_resource(
                 self.__class__.__name__,
                 "image_location",
-                os.path.join(self.base_path, "images", self.iid_dict[image_id]),
+                os.path.join(
+                    self.base_path, "images", self.image_location_for_image_id[image_id]
+                ),
             ).add_lazy_resource(
                 self.__class__.__name__, "input_img_np", self._load_from_location
             )
@@ -132,7 +141,9 @@ class NABirdsDataset(datasets.Dataset):
             sample_ = sample_.add_resource(
                 self.__class__.__name__,
                 "image_location",
-                os.path.join(self.base_path, "images", self.iid_dict[image_id]),
+                os.path.join(
+                    self.base_path, "images", self.image_location_for_image_id[image_id]
+                ),
             )
             sample_ = sample_.add_resource(
                 self.__class__.__name__,
