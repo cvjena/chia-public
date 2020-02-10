@@ -29,4 +29,3 @@ class IoQueueTestCase(unittest.TestCase):
             ]
 
             self.assertEqual(expected_result, actual_result, "These should be equal")
-            return
