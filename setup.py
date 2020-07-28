@@ -6,7 +6,7 @@ setup(
     packages=find_packages(),
     python_requires="==3.7",
     install_requires=[
-        "pillow~=6.2",
+        "pillow~=7.1",
         "tensorflow~=2.0",
         "tensorflow-addons~=0.6",
         "networkx~=2.3",
